@@ -3,11 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.config import settings
 from backend.database import engine, Base
 
-# Importamos todos os routers
-from backend.routers import auth, clinicas, usuarios, pacientes, medicos
+# Importamos todos os routers construídos até agora
+from backend.routers import auth, clinicas, usuarios, pacientes, medicos, convenios
 
-# Importamos os models para garantir que o SQLAlchemy cria as tabelas
-from backend.models import convite, paciente, medico
+# Importamos os models para garantir que o SQLAlchemy cria as tabelas no arranque
+from backend.models import convite, paciente, medico, convenio
 
 # Cria as tabelas na base de dados
 Base.metadata.create_all(bind=engine)
@@ -31,7 +31,8 @@ app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["Aut
 app.include_router(clinicas.router, prefix=f"{settings.API_V1_STR}/clinicas", tags=["Clínicas"])
 app.include_router(usuarios.router, prefix=f"{settings.API_V1_STR}/usuarios", tags=["Usuários"])
 app.include_router(pacientes.router, prefix=f"{settings.API_V1_STR}/pacientes", tags=["Pacientes"])
-app.include_router(medicos.router, prefix=f"{settings.API_V1_STR}/medicos", tags=["Médicos"]) # <-- NOVA ROTA
+app.include_router(medicos.router, prefix=f"{settings.API_V1_STR}/medicos", tags=["Médicos"])
+app.include_router(convenios.router, prefix=f"{settings.API_V1_STR}/convenios", tags=["Convênios"]) # <-- NOVA ROTA
 
 @app.get("/")
 def root():
