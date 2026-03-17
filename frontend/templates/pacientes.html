@@ -4,77 +4,16 @@
 
 {% block extra_css %}
 <style>
-    /* Estilos para a Tabela */
-    .table-container {
-        background: var(--white);
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        overflow: hidden;
-        margin-top: 20px;
-    }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    th, td {
-        padding: 15px;
-        text-align: left;
-        border-bottom: 1px solid var(--border-color);
-    }
-
-    th {
-        background-color: #f1f5f9;
-        color: var(--text-main);
-        font-weight: 600;
-    }
-
-    tr:hover {
-        background-color: #f8fafc;
-    }
-
-    /* Estilos para o Modal (Formulário Oculto) */
-    .modal {
-        display: none; /* Oculto por padrão */
-        position: fixed;
-        z-index: 1000;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0,0,0,0.5);
-        align-items: center;
-        justify-content: center;
-    }
-
-    .modal-content {
-        background-color: var(--white);
-        padding: 25px;
-        border-radius: 8px;
-        width: 100%;
-        max-width: 500px;
-    }
-
-    .modal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 20px;
-    }
-
-    .close-btn {
-        cursor: pointer;
-        font-size: 1.5rem;
-        font-weight: bold;
-        color: #94a3b8;
-    }
-
-    .header-actions {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
+    .table-container { background: var(--white); border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden; margin-top: 20px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 15px; text-align: left; border-bottom: 1px solid var(--border-color); }
+    th { background-color: #f1f5f9; color: var(--text-main); font-weight: 600; }
+    tr:hover { background-color: #f8fafc; }
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+    .modal-content { background-color: var(--white); padding: 25px; border-radius: 8px; width: 100%; max-width: 500px; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .close-btn { cursor: pointer; font-size: 1.5rem; font-weight: bold; color: #94a3b8; }
+    .header-actions { display: flex; justify-content: space-between; align-items: center; }
 </style>
 {% endblock %}
 
@@ -110,7 +49,7 @@
             <label for="nome">Nome Completo *</label>
             <input type="text" id="nome" class="form-control" required>
             
-            <label for="carteira">Número da Carteira (Opcional por agora)</label>
+            <label for="carteira">Número da Carteira (Opcional)</label>
             <input type="text" id="carteira" class="form-control">
             
             <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Salvar Paciente</button>
@@ -122,9 +61,13 @@
 {% block extra_js %}
 <script>
     const token = localStorage.getItem('access_token');
-
-    // Funções para controlar o Modal
+    
     function abrirModal() {
+        const clinicaId = localStorage.getItem('clinica_ativa_id');
+        if (!clinicaId) {
+            alert('Por favor, selecione ou cadastre uma clínica no topo da página primeiro.');
+            return;
+        }
         document.getElementById('modalPaciente').style.display = 'flex';
     }
 
@@ -133,49 +76,54 @@
         document.getElementById('form-paciente').reset();
     }
 
-    // Função para formatar data (YYYY-MM-DD para DD/MM/YYYY)
     function formatarData(dataISO) {
         if (!dataISO) return '-';
-        const data = new Date(dataISO);
-        return data.toLocaleDateString('pt-BR');
+        return new Date(dataISO).toLocaleDateString('pt-BR');
     }
 
-    // LISTAR PACIENTES (GET)
     async function carregarPacientes() {
+        const clinicaId = localStorage.getItem('clinica_ativa_id');
+        const tbody = document.getElementById('tabela-pacientes');
+
+        if (!clinicaId) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: red;">Nenhuma clínica selecionada. Cadastre uma clínica primeiro.</td></tr>';
+            return;
+        }
+
         try {
             const response = await fetch('/api/v1/pacientes/', {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'X-Clinica-Id': clinicaId  // <--- O SEGREDO DO MULTICLÍNICAS ESTÁ AQUI
+                }
             });
 
             if (response.ok) {
                 const pacientes = await response.json();
-                const tbody = document.getElementById('tabela-pacientes');
-                tbody.innerHTML = ''; // Limpa a tabela
+                tbody.innerHTML = '';
 
                 if (pacientes.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Nenhum paciente cadastrado.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Nenhum paciente cadastrado nesta clínica.</td></tr>';
                     return;
                 }
 
                 pacientes.forEach(pac => {
-                    const tr = document.createElement('tr');
-                    tr.innerHTML = `
-                        <td>#${pac.id}</td>
-                        <td><strong>${pac.nome}</strong></td>
-                        <td>${pac.numero_carteira || 'Não informado'}</td>
-                        <td>${formatarData(pac.created_at)}</td>
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>#${pac.id}</td>
+                            <td><strong>${pac.nome}</strong></td>
+                            <td>${pac.numero_carteira || 'Não informado'}</td>
+                            <td>${formatarData(pac.created_at)}</td>
+                        </tr>
                     `;
-                    tbody.appendChild(tr);
                 });
             }
-        } catch (error) {
-            console.error('Erro ao carregar pacientes:', error);
-        }
+        } catch (error) { console.error('Erro ao carregar pacientes:', error); }
     }
 
-    // SALVAR PACIENTE (POST)
     document.getElementById('form-paciente').addEventListener('submit', async function(e) {
         e.preventDefault();
+        const clinicaId = localStorage.getItem('clinica_ativa_id');
 
         const payload = {
             nome: document.getElementById('nome').value,
@@ -187,24 +135,22 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token}`,
+                    'X-Clinica-Id': clinicaId // <--- ENVIADO NA CRIAÇÃO
                 },
                 body: JSON.stringify(payload)
             });
 
             if (response.ok) {
                 fecharModal();
-                carregarPacientes(); // Recarrega a tabela automaticamente!
-                alert('Paciente cadastrado com sucesso!');
+                carregarPacientes();
+                alert('Paciente cadastrado com sucesso na clínica ativa!');
             } else {
                 alert('Erro ao cadastrar paciente.');
             }
-        } catch (error) {
-            console.error('Erro ao salvar:', error);
-        }
+        } catch (error) { console.error('Erro ao salvar:', error); }
     });
 
-    // Carrega a tabela assim que entra na página
     document.addEventListener('DOMContentLoaded', carregarPacientes);
 </script>
 {% endblock %}
