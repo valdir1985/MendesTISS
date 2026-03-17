@@ -7,6 +7,10 @@ class LoteCreate(BaseModel):
     convenio_id: int
     guias_ids: List[int]
 
+# --- SCHEMA PARA REGISTAR O ENVIO ---
+class LoteMarcarEnviado(BaseModel):
+    numero_protocolo: str
+
 # --- SCHEMAS DE RESPOSTA ---
 class LoteGuiaResponse(BaseModel):
     guia_id: int
@@ -20,6 +24,8 @@ class LoteResponse(BaseModel):
     convenio_id: int
     status: str
     valor_total: float
+    numero_protocolo: Optional[str] = None
+    data_envio: Optional[datetime] = None
     created_at: datetime
     updated_at: Optional[datetime]
     guias_rel: List[LoteGuiaResponse] = []
