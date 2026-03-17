@@ -11,7 +11,7 @@ from backend.routers import (
     frontend_pages
 )
 
-# Importar models (para criar tabelas)
+# Importar models para criar tabelas
 from backend.models import (
     convite, paciente, medico, convenio, plano, tabela,
     procedimento, guia, lote, retorno, recurso_glosa
@@ -22,7 +22,7 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
-# CORS (ajusta se precisar)
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -31,13 +31,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Static files
+# Arquivos estáticos
 app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
 
-# Frontend (HTML)
+# Rotas frontend (HTML)
 app.include_router(frontend_pages.router, tags=["Páginas Web"])
 
-# API
+# Rotas API
 app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["Autenticação"])
 app.include_router(clinicas.router, prefix=f"{settings.API_V1_STR}/clinicas", tags=["Clínicas"])
 app.include_router(usuarios.router, prefix=f"{settings.API_V1_STR}/usuarios", tags=["Usuários"])
