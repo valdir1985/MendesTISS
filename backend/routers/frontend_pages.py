@@ -28,3 +28,9 @@ def pagina_pacientes(request: Request):
 def pagina_convenios(request: Request):
     """Serve a página de gestão de Convênios (Operadoras)."""
     return templates.TemplateResponse("convenios.html", {"request": request})
+
+# --- NOVA ROTA ADICIONADA AQUI ---
+@router.get("/medicos", response_class=HTMLResponse)
+def pagina_medicos(request: Request):
+    """Serve a página de gestão de Médicos."""
+    return templates.TemplateResponse("medicos.html", {"request": request})
