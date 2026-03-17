@@ -4,63 +4,90 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - MendesTiss</title>
-    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f1f5f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-container { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        .login-container h2 { text-align: center; color: #333; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: #555; }
+        .form-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .btn-primary { width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin-top: 10px; }
+        .btn-primary:hover { background-color: #0056b3; }
+        #error-msg { color: #dc3545; background-color: #f8d7da; padding: 10px; border-radius: 4px; text-align: center; margin-bottom: 15px; display: none; }
+    </style>
 </head>
-<body class="login-body">
+<body>
 
-    <div class="login-card">
-        <h2>MendesTiss</h2>
-        <form id="login-form">
+<div class="login-container">
+    <h2>MendesTiss</h2>
+    <div id="error-msg">Erro de conexão com o servidor. Tente novamente.</div>
+    
+    <form id="login-form">
+        <div class="form-group">
             <label for="email">E-mail</label>
-            <input type="email" id="email" class="form-control" required placeholder="seu@email.com">
-            
-            <label for="password">Senha</label>
-            <input type="password" id="password" class="form-control" required placeholder="Sua senha">
-            
-            <div id="login-error" style="color: red; margin-bottom: 15px; display: none; text-align: center;"></div>
-            
-            <button type="submit" class="btn-primary" style="width: 100%;">Entrar no Sistema</button>
-        </form>
-    </div>
+            <input type="email" id="email" name="username" required placeholder="Digite seu e-mail master">
+        </div>
+        <div class="form-group">
+            <label for="senha">Senha</label>
+            <input type="password" id="senha" name="password" required placeholder="Digite sua senha">
+        </div>
+        <button type="submit" class="btn-primary" id="btn-login">Entrar no Sistema</button>
+    </form>
+</div>
 
-    <script>
-        document.getElementById('login-form').addEventListener('submit', async function(e) {
-            e.preventDefault(); // Impede o recarregamento da página
-            
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const errorDiv = document.getElementById('login-error');
-            
-            // O OAuth2PasswordRequestForm do FastAPI exige envio como form-urlencoded
-            const formData = new URLSearchParams();
-            formData.append('username', email);
-            formData.append('password', password);
+<script>
+    document.getElementById('login-form').addEventListener('submit', async function(e) {
+        e.preventDefault(); // Evita que a página recarregue
+        
+        const btnLogin = document.getElementById('btn-login');
+        const errorMsg = document.getElementById('error-msg');
+        
+        // Pega os valores digitados
+        const email = document.getElementById('email').value;
+        const senha = document.getElementById('senha').value;
 
-            try {
-                const response = await fetch('/api/v1/auth/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                    },
-                    body: formData
-                });
+        // O FastAPI OAuth2 espera um formulário do tipo x-www-form-urlencoded
+        const formData = new URLSearchParams();
+        formData.append('username', email); // O FastAPI chama o e-mail de username
+        formData.append('password', senha);
 
-                if (response.ok) {
-                    const data = await response.json();
-                    // Guarda o token no navegador
-                    localStorage.setItem('access_token', data.access_token);
-                    // Redireciona para o dashboard (vamos criar essa página na próxima etapa)
-                    window.location.href = '/dashboard';
-                } else {
-                    const errorData = await response.json();
-                    errorDiv.innerText = errorData.detail || "Erro ao fazer login.";
-                    errorDiv.style.display = 'block';
-                }
-            } catch (error) {
-                errorDiv.innerText = "Erro de conexão com o servidor.";
-                errorDiv.style.display = 'block';
+        btnLogin.innerText = 'Autenticando...';
+        btnLogin.disabled = true;
+        errorMsg.style.display = 'none';
+
+        try {
+            // Requisição com caminho relativo apontando para a nova rota do main.py
+            const response = await fetch('/api/v1/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: formData
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                
+                // Salva o Token no navegador para as outras telas usarem
+                localStorage.setItem('access_token', data.access_token);
+                
+                // Sucesso! Redireciona para o Dashboard (ou Clínicas)
+                window.location.href = "/dashboard"; 
+            } else {
+                // Erro 401: Senha ou email errados
+                errorMsg.innerText = "E-mail ou senha incorretos.";
+                errorMsg.style.display = 'block';
             }
-        });
-    </script>
+        } catch (error) {
+            console.error("Erro na requisição:", error);
+            errorMsg.innerText = "Erro de conexão com servidor. Tente novamente.";
+            errorMsg.style.display = 'block';
+        } finally {
+            btnLogin.innerText = 'Entrar no Sistema';
+            btnLogin.disabled = false;
+        }
+    });
+</script>
+
 </body>
 </html>
