@@ -9,51 +9,63 @@
     th, td { padding: 15px; text-align: left; border-bottom: 1px solid var(--border-color); }
     th { background-color: #f1f5f9; color: var(--text-main); font-weight: 600; }
     tr:hover { background-color: #f8fafc; }
+    .status-ativo { color: #10b981; font-weight: bold; }
+    .status-inativo { color: #ef4444; font-weight: bold; }
 
     .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
     .modal-content { background-color: var(--white); padding: 25px; border-radius: 8px; width: 100%; max-width: 500px; }
     .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    .close-btn { cursor: pointer; font-size: 1.5rem; font-weight: bold; color: #94a3b8; }
-    .header-actions { display: flex; justify-content: space-between; align-items: center; }
+    .close-btn { cursor: pointer; font-size: 1.5rem; }
+    
+    .btn-primary { background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; }
+    .btn-primary:hover { background-color: #0056b3; }
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; margin-bottom: 5px; }
+    .form-group input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="header-actions">
-    <h2 class="section-title">Minhas Clínicas</h2>
+<div>
+    <h2>Gestão de Clínicas (Master)</h2>
     <button class="btn-primary" onclick="abrirModal()">+ Nova Clínica</button>
+    
+    <div id="loading" style="margin-top: 20px; color: #666; font-style: italic;">Carregando clínicas...</div>
+    <div id="error-message" style="color: red; margin-top: 10px; display: none;"></div>
+
+    <div class="table-container" id="tabela-container" style="display: none;">
+        <table id="tabela-clinicas">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nome da Clínica</th>
+                    <th>CNPJ</th>
+                    <th>Schema do Banco</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="lista-clinicas">
+                </tbody>
+        </table>
+    </div>
 </div>
 
-<div class="table-container">
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Nome / Razão Social</th>
-                <th>CNPJ</th>
-                <th>Data de Cadastro</th>
-            </tr>
-        </thead>
-        <tbody id="tabela-clinicas">
-            <tr><td colspan="4" style="text-align: center;">Carregando clínicas...</td></tr>
-        </tbody>
-    </table>
-</div>
-
-<div id="modalClinica" class="modal">
+<div id="modal-clinica" class="modal">
     <div class="modal-content">
         <div class="modal-header">
             <h3>Cadastrar Nova Clínica</h3>
             <span class="close-btn" onclick="fecharModal()">&times;</span>
         </div>
         <form id="form-clinica">
-            <label for="nome">Nome da Clínica (Fantasia ou Razão Social) *</label>
-            <input type="text" id="nome" class="form-control" required placeholder="Ex: Clínica Vida Saudável">
-            
-            <label for="cnpj">CNPJ (Apenas números) *</label>
-            <input type="text" id="cnpj" class="form-control" required maxlength="14" placeholder="Ex: 12345678000199">
-            
-            <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Salvar Clínica</button>
+            <div class="form-group">
+                <label>Nome da Clínica</label>
+                <input type="text" id="nome" required>
+            </div>
+            <div class="form-group">
+                <label>CNPJ</label>
+                <input type="text" id="cnpj" required placeholder="00.000.000/0001-00">
+            </div>
+            <button type="submit" class="btn-primary" style="width: 100%;">Salvar Clínica</button>
         </form>
     </div>
 </div>
@@ -63,40 +75,64 @@
 <script>
     const token = localStorage.getItem('access_token');
 
-    function abrirModal() { document.getElementById('modalClinica').style.display = 'flex'; }
-    function fecharModal() { document.getElementById('modalClinica').style.display = 'none'; document.getElementById('form-clinica').reset(); }
+    function abrirModal() { document.getElementById('modal-clinica').style.display = 'flex'; }
+    function fecharModal() { document.getElementById('modal-clinica').style.display = 'none'; }
 
-    const formatarData = (d) => new Date(d).toLocaleDateString('pt-BR');
-
-    // LISTAR CLÍNICAS (GET)
+    // CARREGAR CLÍNICAS (GET)
     async function carregarListaClinicas() {
+        if (!token) {
+            alert("Sessão expirada. Faça login novamente.");
+            window.location.href = "/login";
+            return;
+        }
+
         try {
             const response = await fetch('/api/v1/clinicas/', {
-                headers: { 'Authorization': `Bearer ${token}` }
+                method: 'GET',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${token}` 
+                }
             });
 
-            if (response.ok) {
-                const clinicas = await response.json();
-                const tbody = document.getElementById('tabela-clinicas');
-                tbody.innerHTML = '';
+            if (!response.ok) {
+                throw new Error("Erro ao buscar clínicas no servidor. (Status: " + response.status + ")");
+            }
 
-                if (clinicas.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Nenhuma clínica cadastrada. Cadastre a sua primeira clínica.</td></tr>';
-                    return;
-                }
+            const clinicas = await response.json();
+            const tbody = document.getElementById('lista-clinicas');
+            tbody.innerHTML = ''; // Limpa a tabela
 
-                clinicas.forEach(c => {
+            if(clinicas.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Nenhuma clínica cadastrada.</td></tr>';
+            } else {
+                clinicas.forEach(clinica => {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                        <td>#${c.id}</td>
-                        <td><strong>${c.nome}</strong></td>
-                        <td>${c.cnpj}</td>
-                        <td>${formatarData(c.created_at)}</td>
+                        <td>${clinica.id}</td>
+                        <td>${clinica.nome}</td>
+                        <td>${clinica.cnpj}</td>
+                        <td><code>${clinica.database_name}</code></td>
+                        <td class="${clinica.ativo ? 'status-ativo' : 'status-inativo'}">
+                            ${clinica.ativo ? 'Ativo' : 'Inativo'}
+                        </td>
                     `;
                     tbody.appendChild(tr);
                 });
             }
-        } catch (error) { console.error('Erro ao carregar clínicas:', error); }
+
+            // Esconde o loading e mostra a tabela
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error-message').style.display = 'none';
+            document.getElementById('tabela-container').style.display = 'block';
+
+        } catch (error) { 
+            console.error('Erro ao carregar clínicas:', error); 
+            document.getElementById('loading').style.display = 'none';
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.innerText = error.message;
+            errorDiv.style.display = 'block';
+        }
     }
 
     // SALVAR CLÍNICA (POST)
@@ -111,26 +147,35 @@
         try {
             const response = await fetch('/api/v1/clinicas/', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${token}` 
+                },
                 body: JSON.stringify(payload)
             });
 
             if (response.ok) {
                 fecharModal();
+                document.getElementById('form-clinica').reset();
                 carregarListaClinicas();
                 
-                // Como uma nova clínica foi criada, recarregamos o Seletor Global do Topo da página
+                // Atualiza seletor global se existir
                 if (typeof carregarSeletorGlobalClinicas === "function") {
                     carregarSeletorGlobalClinicas();
                 }
                 
                 alert('Clínica cadastrada com sucesso!');
             } else {
-                alert('Erro ao cadastrar a clínica. Verifique se o CNPJ já existe.');
+                const erroData = await response.json();
+                alert('Erro ao cadastrar a clínica: ' + (erroData.detail || 'Verifique os dados.'));
             }
-        } catch (error) { console.error('Erro ao salvar:', error); }
+        } catch (error) { 
+            console.error('Erro ao salvar:', error); 
+            alert('Erro de conexão ao tentar salvar a clínica.');
+        }
     });
 
+    // Inicia o carregamento assim que a página abre
     document.addEventListener('DOMContentLoaded', carregarListaClinicas);
 </script>
 {% endblock %}
