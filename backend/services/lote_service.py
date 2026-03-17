@@ -6,11 +6,12 @@ from backend.models.lote import LoteTiss, LoteGuia
 from backend.models.guia import Guia
 from backend.schemas.lote import LoteCreate, LoteMarcarEnviado
 
-def create_lote(db: Session, lote_in: LoteCreate):
-    guias = db.query(Guia).filter(Guia.id.in_(lote_in.guias_ids)).all()
+def create_lote(db: Session, lote_in: LoteCreate, clinica_id: int):
+    # Filtra as guias garantindo que pertencem à clínica ativa
+    guias = db.query(Guia).filter(Guia.id.in_(lote_in.guias_ids), Guia.clinica_id == clinica_id).all()
     
     if len(guias) != len(lote_in.guias_ids):
-        raise ValueError("Uma ou mais guias não foram encontradas na base de dados.")
+        raise ValueError("Uma ou mais guias não foram encontradas na base de dados desta clínica.")
         
     valor_total_lote = 0.0
     
@@ -27,6 +28,7 @@ def create_lote(db: Session, lote_in: LoteCreate):
     
     db_lote = LoteTiss(
         numero_lote=numero_lote_gerado,
+        clinica_id=clinica_id, # <-- INJETADO AQUI
         convenio_id=lote_in.convenio_id,
         status="aberto",
         valor_total=valor_total_lote
@@ -43,20 +45,22 @@ def create_lote(db: Session, lote_in: LoteCreate):
     db.refresh(db_lote)
     return db_lote
 
-def get_lotes(db: Session, skip: int = 0, limit: int = 100, convenio_id: int = None, status: str = None):
-    query = db.query(LoteTiss)
+def get_lotes(db: Session, clinica_id: int, skip: int = 0, limit: int = 100, convenio_id: int = None, status: str = None):
+    # Filtra os lotes da clínica
+    query = db.query(LoteTiss).filter(LoteTiss.clinica_id == clinica_id)
     if convenio_id is not None:
         query = query.filter(LoteTiss.convenio_id == convenio_id)
     if status:
         query = query.filter(LoteTiss.status == status)
     return query.offset(skip).limit(limit).all()
 
-def get_lote(db: Session, lote_id: int):
-    return db.query(LoteTiss).filter(LoteTiss.id == lote_id).first()
+def get_lote(db: Session, lote_id: int, clinica_id: int):
+    # Busca o lote validando a clínica
+    return db.query(LoteTiss).filter(LoteTiss.id == lote_id, LoteTiss.clinica_id == clinica_id).first()
 
 # --- NOVA FUNÇÃO DA ETAPA 13 ---
-def marcar_lote_como_enviado(db: Session, lote_id: int, envio_data: LoteMarcarEnviado):
-    db_lote = get_lote(db, lote_id)
+def marcar_lote_como_enviado(db: Session, lote_id: int, envio_data: LoteMarcarEnviado, clinica_id: int):
+    db_lote = get_lote(db, lote_id, clinica_id)
     if not db_lote:
         return None
         
@@ -72,8 +76,8 @@ def marcar_lote_como_enviado(db: Session, lote_id: int, envio_data: LoteMarcarEn
     lote_guias = db.query(LoteGuia).filter(LoteGuia.lote_id == lote_id).all()
     guias_ids = [lg.guia_id for lg in lote_guias]
     
-    # 3. Atualiza o status de todas as guias para 'enviada'
-    guias = db.query(Guia).filter(Guia.id.in_(guias_ids)).all()
+    # 3. Atualiza o status de todas as guias garantindo a clínica
+    guias = db.query(Guia).filter(Guia.id.in_(guias_ids), Guia.clinica_id == clinica_id).all()
     for guia in guias:
         guia.status = "enviada"
         
