@@ -9,6 +9,9 @@ class LoteTiss(Base):
     id = Column(Integer, primary_key=True, index=True)
     numero_lote = Column(String(50), unique=True, index=True, nullable=False)
     
+    # NOVO: Vínculo com a Clínica
+    clinica_id = Column(Integer, ForeignKey("clinicas.id"), nullable=False, index=True)
+    
     # O lote é sempre direcionado a uma operadora específica
     convenio_id = Column(Integer, ForeignKey("convenios.id"), nullable=False, index=True)
     
