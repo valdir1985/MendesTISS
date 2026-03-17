@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+
+{% block title %}Digitação de Guias - MendesTiss{% endblock %}
+
+{% block extra_css %}
+<style>
+    .table-container { background: var(--white); border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden; margin-top: 20px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border-color); }
+    th { background-color: #f1f5f9; color: var(--text-main); font-weight: 600; }
+    tr:hover { background-color: #f8fafc; }
+
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+    .modal-content { background-color: var(--white); padding: 25px; border-radius: 8px; width: 100%; max-width: 800px; max-height: 90vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .close-btn { cursor: pointer; font-size: 1.5rem; font-weight: bold; color: #94a3b8; }
+    .header-actions { display: flex; justify-content: space-between; align-items: center; }
+    
+    .form-row { display: flex; gap: 15px; margin-bottom: 10px; }
+    .form-row > div { flex: 1; }
+    
+    /* Seção de Procedimentos */
+    .procedimentos-section { border: 1px solid var(--border-color); padding: 15px; border-radius: 6px; margin-bottom: 15px; background: #f8fafc; }
+    .procedimentos-section h4 { margin-bottom: 10px; color: var(--primary-dark); }
+    .lista-procedimentos { list-style: none; padding: 0; margin-top: 15px; }
+    .lista-procedimentos li { background: var(--white); border: 1px solid var(--border-color); padding: 10px; display: flex; justify-content: space-between; margin-bottom: 5px; border-radius: 4px; }
+    .btn-remover { color: red; cursor: pointer; border: none; background: none; font-weight: bold; }
+    
+    .badge { padding: 5px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; }
+    .badge-digitada { background-color: #e0f2fe; color: #0369a1; }
+    .badge-em-lote { background-color: #fef08a; color: #854d0e; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-actions">
+    <h2 class="section-title">Digitação de Guias TISS</h2>
+    <button class="btn-primary" onclick="abrirModal()">+ Nova Guia</button>
+</div>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Paciente</th>
+                <th>Tipo Guia</th>
+                <th>Data Atendimento</th>
+                <th>Valor Total</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody id="tabela-guias">
+            <tr><td colspan="6" style="text-align: center;">Carregando guias...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<div id="modalGuia" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Preencher Nova Guia</h3>
+            <span class="close-btn" onclick="fecharModal()">&times;</span>
+        </div>
+        <form id="form-guia">
+            <div class="form-row">
+                <div>
+                    <label>Paciente *</label>
+                    <select id="guia-paciente" class="form-control" required><option value="">Carregando...</option></select>
+                </div>
+                <div>
+                    <label>Médico Executante *</label>
+                    <select id="guia-medico" class="form-control" required><option value="">Carregando...</option></select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div>
+                    <label>Convênio *</label>
+                    <select id="guia-convenio" class="form-control" required><option value="">Carregando...</option></select>
+                </div>
+                <div>
+                    <label>Plano *</label>
+                    <select id="guia-plano" class="form-control" required><option value="">Carregando...</option></select>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div>
+                    <label>Tipo de Guia *</label>
+                    <select id="guia-tipo" class="form-control" required>
+                        <option value="Consulta">Guia de Consulta</option>
+                        <option value="SADT">Guia SP/SADT</option>
+                        <option value="Honorario">Honorário Individual</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Data do Atendimento *</label>
+                    <input type="date" id="guia-data" class="form-control" required>
+                </div>
+            </div>
+
+            <div class="procedimentos-section">
+                <h4>Procedimentos Realizados</h4>
+                <div class="form-row">
+                    <div style="flex: 2;">
+                        <select id="select-procedimento" class="form-control"><option value="">Selecione um procedimento...</option></select>
+                    </div>
+                    <div>
+                        <input type="number" id="input-qtd" class="form-control" placeholder="Qtd" value="1" min="1">
+                    </div>
+                    <div>
+                        <input type="number" step="0.01" id="input-valor" class="form-control" placeholder="Valor Unitário (R$)">
+                    </div>
+                    <div>
+                        <button type="button" class="btn-primary" onclick="adicionarProcedimento()">Adicionar</button>
+                    </div>
+                </div>
+                <ul class="lista-procedimentos" id="lista-procedimentos-html">
+                    </ul>
+                <div style="text-align: right; font-weight: bold; margin-top: 10px;">
+                    Total Estimado: R$ <span id="total-estimado">0.00</span>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn-primary" style="width: 100%;">Salvar Guia Definitiva</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const token = localStorage.getItem('access_token');
+    let procedimentosDaGuia = []; // Nosso "carrinho" de procedimentos
+
+    // Formatar moeda
+    const formatarMoeda = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+    const formatarData = (d) => new Date(d + 'T00:00:00').toLocaleDateString('pt-BR');
+
+    async function carregarDependencias() {
+        // Carrega as listas suspensas (Pacientes, Médicos, Convênios, Planos, Procedimentos)
+        const rotas = [
+            { id: 'guia-paciente', url: '/api/v1/pacientes/' },
+            { id: 'guia-medico', url: '/api/v1/medicos/' },
+            { id: 'guia-convenio', url: '/api/v1/convenios/' },
+            { id: 'guia-plano', url: '/api/v1/planos/' },
+            { id: 'select-procedimento', url: '/api/v1/procedimentos/' }
+        ];
+
+        for (const rota of rotas) {
+            try {
+                const res = await fetch(rota.url, { headers: { 'Authorization': `Bearer ${token}` } });
+                if (res.ok) {
+                    const dados = await res.json();
+                    const select = document.getElementById(rota.id);
+                    select.innerHTML = '<option value="">Selecione...</option>';
+                    dados.forEach(item => {
+                        const texto = item.nome || `${item.codigo} - ${item.descricao}`;
+                        select.innerHTML += `<option value="${item.id}" data-valor="${item.valor || 0}">${texto}</option>`;
+                    });
+                }
+            } catch (e) { console.error(`Erro ao carregar ${rota.url}`); }
+        }
+    }
+
+    function abrirModal() {
+        document.getElementById('modalGuia').style.display = 'flex';
+        // Define a data de hoje como padrão
+        document.getElementById('guia-data').value = new Date().toISOString().split('T')[0];
+        carregarDependencias();
+    }
+
+    function fecharModal() {
+        document.getElementById('modalGuia').style.display = 'none';
+        document.getElementById('form-guia').reset();
+        procedimentosDaGuia = [];
+        atualizarListaProcedimentos();
+    }
+
+    // Lógica do Carrinho de Procedimentos
+    document.getElementById('select-procedimento').addEventListener('change', function() {
+        // Puxa o valor padrão do procedimento se houver
+        const selectedOption = this.options[this.selectedIndex];
+        if (selectedOption.value) {
+            document.getElementById('input-valor').value = selectedOption.getAttribute('data-valor');
+        } else {
+            document.getElementById('input-valor').value = '';
+        }
+    });
+
+    function adicionarProcedimento() {
+        const select = document.getElementById('select-procedimento');
+        const id = select.value;
+        const texto = select.options[select.selectedIndex].text;
+        const qtd = parseInt(document.getElementById('input-qtd').value);
+        const valor = parseFloat(document.getElementById('input-valor').value);
+
+        if (!id || isNaN(qtd) || isNaN(valor)) {
+            alert('Preencha o procedimento, quantidade e valor corretamente.');
+            return;
+        }
+
+        procedimentosDaGuia.push({ procedimento_id: parseInt(id), texto: texto, quantidade: qtd, valor_unitario: valor });
+        atualizarListaProcedimentos();
+        
+        // Limpa os campos
+        select.value = '';
+        document.getElementById('input-qtd').value = '1';
+        document.getElementById('input-valor').value = '';
+    }
+
+    function removerProcedimento(index) {
+        procedimentosDaGuia.splice(index, 1);
+        atualizarListaProcedimentos();
+    }
+
+    function atualizarListaProcedimentos() {
+        const ul = document.getElementById('lista-procedimentos-html');
+        ul.innerHTML = '';
+        let total = 0;
+
+        procedimentosDaGuia.forEach((p, index) => {
+            const subtotal = p.quantidade * p.valor_unitario;
+            total += subtotal;
+            ul.innerHTML += `
+                <li>
+                    <span>${p.quantidade}x ${p.texto} (${formatarMoeda(p.valor_unitario)})</span>
+                    <strong>${formatarMoeda(subtotal)} <button type="button" class="btn-remover" onclick="removerProcedimento(${index})">X</button></strong>
+                </li>`;
+        });
+        document.getElementById('total-estimado').innerText = total.toFixed(2);
+    }
+
+    // LISTAR GUIAS (GET)
+    async function carregarGuias() {
+        try {
+            const response = await fetch('/api/v1/guias/', { headers: { 'Authorization': `Bearer ${token}` } });
+            if (response.ok) {
+                const guias = await response.json();
+                const tbody = document.getElementById('tabela-guias');
+                tbody.innerHTML = '';
+
+                if (guias.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Nenhuma guia registada.</td></tr>';
+                    return;
+                }
+
+                // Precisamos buscar os pacientes para cruzar o nome, mas para simplificar vamos apenas exibir o ID do paciente e status
+                guias.forEach(g => {
+                    let classeBadge = g.status === 'digitada' ? 'badge-digitada' : (g.status === 'em_lote' ? 'badge-em-lote' : '');
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>#${g.id}</td>
+                            <td>ID Paciente: ${g.paciente_id}</td>
+                            <td>${g.tipo_guia}</td>
+                            <td>${formatarData(g.data_atendimento)}</td>
+                            <td>${formatarMoeda(g.valor_total)}</td>
+                            <td><span class="badge ${classeBadge}">${g.status}</span></td>
+                        </tr>
+                    `;
+                });
+            }
+        } catch (error) { console.error('Erro ao carregar guias:', error); }
+    }
+
+    // SALVAR GUIA (POST)
+    document.getElementById('form-guia').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        if (procedimentosDaGuia.length === 0) {
+            alert('Adicione pelo menos um procedimento na guia antes de salvar!');
+            return;
+        }
+
+        const payload = {
+            paciente_id: parseInt(document.getElementById('guia-paciente').value),
+            medico_executante_id: parseInt(document.getElementById('guia-medico').value),
+            convenio_id: parseInt(document.getElementById('guia-convenio').value),
+            plano_id: parseInt(document.getElementById('guia-plano').value),
+            tipo_guia: document.getElementById('guia-tipo').value,
+            data_atendimento: document.getElementById('guia-data').value,
+            procedimentos: procedimentosDaGuia.map(p => ({
+                procedimento_id: p.procedimento_id,
+                quantidade: p.quantidade,
+                valor_unitario: p.valor_unitario
+            }))
+        };
+
+        try {
+            const response = await fetch('/api/v1/guias/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                fecharModal();
+                carregarGuias(); 
+                alert('Guia salva com sucesso!');
+            } else {
+                const errData = await response.json();
+                alert('Erro: ' + (errData.detail || 'Não foi possível salvar a guia.'));
+            }
+        } catch (error) { console.error('Erro ao salvar guia:', error); }
+    });
+
+    document.addEventListener('DOMContentLoaded', carregarGuias);
+</script>
+{% endblock %}
