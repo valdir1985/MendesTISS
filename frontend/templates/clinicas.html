@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block title %}Gestão de Clínicas - MendesTiss{% endblock %}
+
+{% block extra_css %}
+<style>
+    .table-container { background: var(--white); border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden; margin-top: 20px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 15px; text-align: left; border-bottom: 1px solid var(--border-color); }
+    th { background-color: #f1f5f9; color: var(--text-main); font-weight: 600; }
+    tr:hover { background-color: #f8fafc; }
+
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+    .modal-content { background-color: var(--white); padding: 25px; border-radius: 8px; width: 100%; max-width: 500px; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .close-btn { cursor: pointer; font-size: 1.5rem; font-weight: bold; color: #94a3b8; }
+    .header-actions { display: flex; justify-content: space-between; align-items: center; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="header-actions">
+    <h2 class="section-title">Minhas Clínicas</h2>
+    <button class="btn-primary" onclick="abrirModal()">+ Nova Clínica</button>
+</div>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nome / Razão Social</th>
+                <th>CNPJ</th>
+                <th>Data de Cadastro</th>
+            </tr>
+        </thead>
+        <tbody id="tabela-clinicas">
+            <tr><td colspan="4" style="text-align: center;">Carregando clínicas...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<div id="modalClinica" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Cadastrar Nova Clínica</h3>
+            <span class="close-btn" onclick="fecharModal()">&times;</span>
+        </div>
+        <form id="form-clinica">
+            <label for="nome">Nome da Clínica (Fantasia ou Razão Social) *</label>
+            <input type="text" id="nome" class="form-control" required placeholder="Ex: Clínica Vida Saudável">
+            
+            <label for="cnpj">CNPJ (Apenas números) *</label>
+            <input type="text" id="cnpj" class="form-control" required maxlength="14" placeholder="Ex: 12345678000199">
+            
+            <button type="submit" class="btn-primary" style="width: 100%; margin-top: 10px;">Salvar Clínica</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const token = localStorage.getItem('access_token');
+
+    function abrirModal() { document.getElementById('modalClinica').style.display = 'flex'; }
+    function fecharModal() { document.getElementById('modalClinica').style.display = 'none'; document.getElementById('form-clinica').reset(); }
+
+    const formatarData = (d) => new Date(d).toLocaleDateString('pt-BR');
+
+    // LISTAR CLÍNICAS (GET)
+    async function carregarListaClinicas() {
+        try {
+            const response = await fetch('/api/v1/clinicas/', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                const clinicas = await response.json();
+                const tbody = document.getElementById('tabela-clinicas');
+                tbody.innerHTML = '';
+
+                if (clinicas.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">Nenhuma clínica cadastrada. Cadastre a sua primeira clínica.</td></tr>';
+                    return;
+                }
+
+                clinicas.forEach(c => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>#${c.id}</td>
+                        <td><strong>${c.nome}</strong></td>
+                        <td>${c.cnpj}</td>
+                        <td>${formatarData(c.created_at)}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        } catch (error) { console.error('Erro ao carregar clínicas:', error); }
+    }
+
+    // SALVAR CLÍNICA (POST)
+    document.getElementById('form-clinica').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const payload = {
+            nome: document.getElementById('nome').value,
+            cnpj: document.getElementById('cnpj').value
+        };
+
+        try {
+            const response = await fetch('/api/v1/clinicas/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                fecharModal();
+                carregarListaClinicas();
+                
+                // Como uma nova clínica foi criada, recarregamos o Seletor Global do Topo da página
+                if (typeof carregarSeletorGlobalClinicas === "function") {
+                    carregarSeletorGlobalClinicas();
+                }
+                
+                alert('Clínica cadastrada com sucesso!');
+            } else {
+                alert('Erro ao cadastrar a clínica. Verifique se o CNPJ já existe.');
+            }
+        } catch (error) { console.error('Erro ao salvar:', error); }
+    });
+
+    document.addEventListener('DOMContentLoaded', carregarListaClinicas);
+</script>
+{% endblock %}
