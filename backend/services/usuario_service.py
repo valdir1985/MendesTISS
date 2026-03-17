@@ -1,37 +1,36 @@
 from sqlalchemy.orm import Session
+from fastapi import HTTPException, status
 from backend.models.usuario import Usuario
-from backend.models.convite import ConviteUsuario
-from backend.schemas.usuario import UsuarioUpdate, ConviteCreate
-from datetime import datetime, timedelta
+from backend.schemas.usuario import UsuarioCreate
+from backend.core.security import get_password_hash
 
-def get_usuarios(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(Usuario).offset(skip).limit(limit).all()
+def get_usuarios(db: Session, clinica_id: int = None, skip: int = 0, limit: int = 100):
+    """Retorna usuários. Se clinica_id for passado, filtra os usuários daquela clínica."""
+    query = db.query(Usuario)
+    if clinica_id:
+        query = query.filter(Usuario.clinica_id == clinica_id)
+    return query.offset(skip).limit(limit).all()
 
-def get_usuario_by_id(db: Session, user_id: int):
-    return db.query(Usuario).filter(Usuario.id == user_id).first()
-
-def update_usuario(db: Session, user_id: int, user_update: UsuarioUpdate):
-    db_user = get_usuario_by_id(db, user_id)
-    if not db_user:
-        return None
+def create_usuario(db: Session, user: UsuarioCreate):
+    """Cria um novo usuário colaborador ou master no banco MASTER."""
+    existente = db.query(Usuario).filter(Usuario.email == user.email).first()
+    if existente:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email já registrado no sistema."
+        )
     
-    update_data = user_update.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
-        setattr(db_user, key, value)
-        
-    db.commit()
-    db.refresh(db_user)
-    return db_user
-
-def criar_convite(db: Session, convite: ConviteCreate):
-    # O convite expira automaticamente em 7 dias
-    expira = datetime.utcnow() + timedelta(days=7)
-    novo_convite = ConviteUsuario(
-        email=convite.email,
-        tipo_usuario=convite.tipo_usuario,
-        expira_em=expira
+    hashed_password = get_password_hash(user.senha)
+    
+    novo_usuario = Usuario(
+        nome=user.nome,
+        email=user.email,
+        senha_hash=hashed_password,
+        tipo_usuario=user.tipo_usuario,
+        clinica_id=user.clinica_id
     )
-    db.add(novo_convite)
+    
+    db.add(novo_usuario)
     db.commit()
-    db.refresh(novo_convite)
-    return novo_convite
+    db.refresh(novo_usuario)
+    return novo_usuario
