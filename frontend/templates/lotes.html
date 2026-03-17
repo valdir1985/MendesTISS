@@ -132,14 +132,19 @@
         try {
             const res = await fetch('/api/v1/convenios/', { headers: { 'Authorization': `Bearer ${token}` } });
             if (res.ok) {
-                const convenios = await response.json();
+                // CORREÇÃO AQUI: mudamos de response.json() para res.json()
+                const convenios = await res.json(); 
                 const select = document.getElementById('lote-convenio');
+                
                 select.innerHTML = '<option value="">Selecione a Operadora...</option>';
+                
                 convenios.forEach(c => {
                     select.innerHTML += `<option value="${c.id}">${c.nome} (ANS: ${c.registro_ans})</option>`;
                 });
             }
-        } catch (e) { console.error('Erro convenios'); }
+        } catch (e) { 
+            console.error('Erro ao carregar convenios:', e); 
+        }
     }
 
     function fecharModal() {
