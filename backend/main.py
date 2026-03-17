@@ -4,10 +4,10 @@ from backend.config import settings
 from backend.database import engine, Base
 
 # Importamos todos os routers construídos até agora
-from backend.routers import auth, clinicas, usuarios, pacientes, medicos, convenios, planos
+from backend.routers import auth, clinicas, usuarios, pacientes, medicos, convenios, planos, tabelas
 
 # Importamos os models para garantir que o SQLAlchemy cria as tabelas no arranque
-from backend.models import convite, paciente, medico, convenio, plano
+from backend.models import convite, paciente, medico, convenio, plano, tabela
 
 # Cria as tabelas na base de dados
 Base.metadata.create_all(bind=engine)
@@ -33,7 +33,8 @@ app.include_router(usuarios.router, prefix=f"{settings.API_V1_STR}/usuarios", ta
 app.include_router(pacientes.router, prefix=f"{settings.API_V1_STR}/pacientes", tags=["Pacientes"])
 app.include_router(medicos.router, prefix=f"{settings.API_V1_STR}/medicos", tags=["Médicos"])
 app.include_router(convenios.router, prefix=f"{settings.API_V1_STR}/convenios", tags=["Convênios"])
-app.include_router(planos.router, prefix=f"{settings.API_V1_STR}/planos", tags=["Planos"]) # <-- NOVA ROTA
+app.include_router(planos.router, prefix=f"{settings.API_V1_STR}/planos", tags=["Planos"])
+app.include_router(tabelas.router, prefix=f"{settings.API_V1_STR}/tabelas", tags=["Tabelas de Domínio"]) # <-- NOVA ROTA
 
 @app.get("/")
 def root():
