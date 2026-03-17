@@ -39,6 +39,7 @@ class GuiaStatusUpdate(BaseModel):
 
 class GuiaResponse(GuiaBase):
     id: int
+    clinica_id: int # <-- NOVO
     numero_guia_prestador: Optional[str]
     data_emissao: date
     status: str
