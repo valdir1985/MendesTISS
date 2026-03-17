@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -8,7 +8,8 @@ from backend.services import clinica_service
 from backend.models.usuario import Usuario
 from backend.routers.auth import get_current_user
 
-router = APIRouter(prefix="/clinicas", tags=["Clínicas"])
+# CORREÇÃO: Sem prefixo aqui, pois o main.py já inclui o "/api/v1/clinicas"
+router = APIRouter(tags=["Clínicas"])
 
 @router.post("/", response_model=ClinicaResponse)
 def criar_clinica(
@@ -17,11 +18,10 @@ def criar_clinica(
     current_user: Usuario = Depends(get_current_user)
 ):
     """
-    Cadastra uma nova clínica e provisiona automaticamente um banco de dados
-    PostgreSQL isolado para ela. Apenas usuários master podem realizar esta ação.
+    Cadastra uma nova clínica e provisiona automaticamente um schema isolado
+    no PostgreSQL/Supabase para ela. Apenas usuários master podem realizar esta ação.
     """
     if current_user.tipo_usuario != "master":
-        from fastapi import HTTPException
         raise HTTPException(status_code=403, detail="Apenas usuários master podem criar clínicas.")
         
     return clinica_service.create_clinica(db, clinica)
