@@ -5,6 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}MendesTiss{% endblock %}</title>
     <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .topbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .select-clinica-global {
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background-color: #f8fafc;
+            color: var(--primary-dark);
+            font-weight: bold;
+            outline: none;
+            cursor: pointer;
+        }
+    </style>
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -15,6 +32,7 @@
         </div>
         <ul class="sidebar-menu">
             <li><a href="/dashboard">Dashboard</a></li>
+            <li><a href="/clinicas">🏥 Minhas Clínicas</a></li>
             <li><a href="/pacientes">Pacientes</a></li>
             <li><a href="/medicos">Médicos</a></li>
             <li><a href="/convenios">Convênios</a></li>
@@ -26,9 +44,13 @@
 
     <div class="main-wrapper">
         <header class="topbar">
-            <div class="user-info">
+            <div class="topbar-actions">
+                <select id="global-clinica-selector" class="select-clinica-global" onchange="mudarClinicaAtiva()">
+                    <option value="">Carregando clínicas...</option>
+                </select>
+                
                 <span id="user-name-display">Carregando...</span>
-                <button class="btn-primary" onclick="fazerLogout()" style="margin-left: 15px; padding: 5px 10px; font-size: 0.9rem;">Sair</button>
+                <button class="btn-primary" onclick="fazerLogout()" style="padding: 5px 10px; font-size: 0.9rem;">Sair</button>
             </div>
         </header>
 
@@ -39,19 +61,71 @@
     </div>
 
     <script>
-        // Sempre que uma página base carregar, verifica se o utilizador está logado
         document.addEventListener("DOMContentLoaded", function() {
             const token = localStorage.getItem("access_token");
             if (!token) {
                 window.location.href = "/login";
             } else {
-                // Num sistema real, aqui faríamos um GET para /api/v1/auth/me para preencher o nome
                 document.getElementById("user-name-display").innerText = "Usuário Logado";
+                // Inicia a carga do seletor global
+                carregarSeletorGlobalClinicas();
             }
         });
 
+        // FUNÇÃO GLOBAL: Carrega as clínicas no seletor do topo
+        async function carregarSeletorGlobalClinicas() {
+            const token = localStorage.getItem("access_token");
+            try {
+                const response = await fetch('/api/v1/clinicas/', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (response.ok) {
+                    const clinicas = await response.json();
+                    const seletor = document.getElementById("global-clinica-selector");
+                    seletor.innerHTML = '';
+
+                    if (clinicas.length === 0) {
+                        seletor.innerHTML = '<option value="">Nenhuma clínica cadastrada</option>';
+                        seletor.disabled = true;
+                        return;
+                    }
+
+                    seletor.disabled = false;
+                    let clinicaSalva = localStorage.getItem("clinica_ativa_id");
+                    let clinicaSalvaExiste = false;
+
+                    clinicas.forEach(c => {
+                        seletor.innerHTML += `<option value="${c.id}">${c.nome}</option>`;
+                        if (clinicaSalva == c.id) clinicaSalvaExiste = true;
+                    });
+
+                    // Se não tiver clínica salva na memória (ou se a salva foi apagada), seleciona a primeira por padrão
+                    if (!clinicaSalva || !clinicaSalvaExiste) {
+                        clinicaSalva = clinicas[0].id;
+                        localStorage.setItem("clinica_ativa_id", clinicaSalva);
+                    }
+
+                    seletor.value = clinicaSalva;
+                }
+            } catch (error) {
+                console.error("Erro ao carregar seletor global de clínicas", error);
+            }
+        }
+
+        // FUNÇÃO GLOBAL: Quando o utilizador muda a clínica na caixa de seleção
+        function mudarClinicaAtiva() {
+            const novaClinicaId = document.getElementById("global-clinica-selector").value;
+            if (novaClinicaId) {
+                localStorage.setItem("clinica_ativa_id", novaClinicaId);
+                // Atualiza a página atual para recarregar os dados focados na nova clínica
+                window.location.reload(); 
+            }
+        }
+
         function fazerLogout() {
             localStorage.removeItem("access_token");
+            localStorage.removeItem("clinica_ativa_id");
             window.location.href = "/login";
         }
     </script>
