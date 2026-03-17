@@ -6,15 +6,15 @@ class Clinica(Base):
     __tablename__ = "clinicas"
 
     id = Column(Integer, primary_key=True, index=True)
-    nome = Column(String(200), nullable=False)
-    cnpj = Column(String(20), unique=True, index=True, nullable=True)
+    nome = Column(String(150), nullable=False)
+    cnpj = Column(String(18), unique=True, index=True, nullable=False)
     
-    # Dados de conexão para o banco de dados isolado da clínica
-    database_name = Column(String(100), nullable=True)
-    database_host = Column(String(100), nullable=True)
-    database_port = Column(Integer, nullable=True)
-    database_user = Column(String(100), nullable=True)
-    database_password = Column(String(200), nullable=True)
+    # Credenciais do banco isolado da clínica
+    database_name = Column(String(100), unique=True, nullable=False)
+    database_host = Column(String(100), nullable=False, default="localhost")
+    database_port = Column(Integer, nullable=False, default=5432)
+    database_user = Column(String(100), nullable=False)
+    database_password = Column(String(255), nullable=False)
     
     ativo = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
