@@ -18,6 +18,12 @@ def pagina_login(request: Request):
 def pagina_dashboard(request: Request):
     return templates.TemplateResponse("dashboard.html", {"request": request})
 
+# --- NOVA ROTA ADICIONADA AQUI ---
+@router.get("/clinicas", response_class=HTMLResponse)
+def pagina_clinicas(request: Request):
+    """Serve a página de Gestão de Clínicas."""
+    return templates.TemplateResponse("clinicas.html", {"request": request})
+
 @router.get("/pacientes", response_class=HTMLResponse)
 def pagina_pacientes(request: Request):
     return templates.TemplateResponse("pacientes.html", {"request": request})
@@ -38,8 +44,6 @@ def pagina_guias(request: Request):
 def pagina_lotes(request: Request):
     return templates.TemplateResponse("lotes.html", {"request": request})
 
-# --- NOVA ROTA ADICIONADA AQUI ---
 @router.get("/retornos", response_class=HTMLResponse)
 def pagina_retornos(request: Request):
-    """Serve a página de Importação de Retornos e Glosas."""
     return templates.TemplateResponse("retornos.html", {"request": request})
