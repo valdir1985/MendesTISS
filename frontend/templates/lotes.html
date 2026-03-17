@@ -231,10 +231,40 @@
         } catch (error) { console.error(error); }
     });
 
-    // AÇÕES ESPECIAIS: BAIXAR XML E INFORMAR PROTOCOLO
-    function baixarXML(lote_id) {
-        // Abre o link do ficheiro numa nova aba para forçar o download
-        window.open(`/api/v1/tiss/lotes/${lote_id}/xml`, '_blank');
+    
+   // AÇÕES ESPECIAIS: BAIXAR XML E INFORMAR PROTOCOLO
+    async function baixarXML(lote_id) {
+        try {
+            // 1. Fazemos a requisição com o Token de segurança
+            const response = await fetch(`/api/v1/tiss/lotes/${lote_id}/xml`, {
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (response.ok) {
+                // 2. Transformamos a resposta num ficheiro físico (Blob)
+                const blob = await response.blob();
+                
+                // 3. Criamos um link temporário na memória do navegador para forçar o download
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                // O nome do ficheiro que será salvo no computador
+                a.download = `Lote_TISS_MendesTiss_${lote_id}.xml`; 
+                
+                // Clica no link invisível e depois limpa a memória
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+            } else {
+                alert('Erro ao gerar o XML. O lote pode estar vazio ou corrompido.');
+            }
+        } catch (error) {
+            console.error('Erro no download:', error);
+            alert('Erro de conexão ao tentar baixar o XML.');
+        }
     }
 
     async function informarProtocolo(lote_id) {
