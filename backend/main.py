@@ -1,3 +1,6 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -13,16 +16,11 @@ from backend.core.security import create_access_token
 from backend.models.usuario import Usuario
 
 
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles # <-- NOVA IMPORTAÇÃO
 from backend.config import settings
 from backend.database import engine, Base
 
-# Importamos todos os routers construídos
-# Importamos os routers da API
 from backend.routers import (
 auth, clinicas, usuarios, pacientes, medicos, convenios, planos, 
-    tabelas, procedimentos, guias, lotes, tiss_engine, retornos, glosas, recursos, dashboard
     tabelas, procedimentos, guias, lotes, tiss_engine, retornos, glosas, recursos, dashboard,
     frontend_pages # <-- NOVA IMPORTAÇÃO (Router das páginas HTML)
 )
