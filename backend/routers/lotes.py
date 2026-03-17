@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
 from backend.database import get_db
-from backend.schemas.lote import LoteCreate, LoteResponse
+from backend.schemas.lote import LoteCreate, LoteResponse, LoteMarcarEnviado
 from backend.services import lote_service
 from backend.routers.auth import get_current_user
 from backend.models.usuario import Usuario
@@ -16,10 +16,7 @@ def agrupar_guias_em_lote(
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user)
 ):
-    """
-    Cria um novo Lote TISS contendo as guias especificadas.
-    Altera automaticamente o status das guias para 'em_lote'.
-    """
+    """Cria um novo Lote TISS contendo as guias especificadas."""
     if not lote_in.guias_ids or len(lote_in.guias_ids) == 0:
         raise HTTPException(status_code=400, detail="O lote deve conter pelo menos uma guia.")
         
@@ -27,7 +24,6 @@ def agrupar_guias_em_lote(
         novo_lote = lote_service.create_lote(db=db, lote_in=lote_in)
         return novo_lote
     except ValueError as ve:
-        # Captura os erros de validação de regra de negócio (ex: guia de outro convênio)
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erro interno ao criar lote: {str(e)}")
@@ -50,8 +46,28 @@ def obter_lote(
     db: Session = Depends(get_db),
     current_user: Usuario = Depends(get_current_user)
 ):
-    """Detalhes de um lote e quais guias estão dentro dele."""
+    """Detalhes de um lote."""
     db_lote = lote_service.get_lote(db, lote_id=lote_id)
     if db_lote is None:
         raise HTTPException(status_code=404, detail="Lote não encontrado.")
     return db_lote
+
+# --- NOVA ROTA DA ETAPA 13 ---
+@router.patch("/{lote_id}/enviar", response_model=LoteResponse)
+def registar_envio_lote(
+    lote_id: int, 
+    envio_data: LoteMarcarEnviado,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user)
+):
+    """
+    Regista que o lote foi enviado para a operadora.
+    Salva o número do protocolo e altera as guias para o status 'enviada'.
+    """
+    try:
+        db_lote = lote_service.marcar_lote_como_enviado(db, lote_id, envio_data)
+        if db_lote is None:
+            raise HTTPException(status_code=404, detail="Lote não encontrado.")
+        return db_lote
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
