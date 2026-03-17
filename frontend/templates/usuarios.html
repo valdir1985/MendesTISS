@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+
+{% block title %}Gestão de Usuários - MendesTiss{% endblock %}
+
+{% block extra_css %}
+<style>
+    .table-container { background: var(--white); border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden; margin-top: 20px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 15px; text-align: left; border-bottom: 1px solid var(--border-color); }
+    th { background-color: #f1f5f9; color: var(--text-main); font-weight: 600; }
+    tr:hover { background-color: #f8fafc; }
+    
+    .badge-master { background: #3b82f6; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; }
+    .badge-colab { background: #64748b; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; }
+
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+    .modal-content { background-color: var(--white); padding: 25px; border-radius: 8px; width: 100%; max-width: 500px; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .close-btn { cursor: pointer; font-size: 1.5rem; }
+    
+    .btn-primary { background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; }
+    .btn-primary:hover { background-color: #0056b3; }
+    .form-group { margin-bottom: 15px; }
+    .form-group label { display: block; margin-bottom: 5px; }
+    .form-group input, .form-group select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div>
+    <h2>Gestão de Usuários</h2>
+    <button class="btn-primary" onclick="abrirModalUsuario()">+ Novo Usuário</button>
+    
+    <div class="table-container">
+        <table id="tabela-usuarios">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nome</th>
+                    <th>Email</th>
+                    <th>Perfil</th>
+                    <th>ID Clínica</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody id="lista-usuarios">
+                <tr><td colspan="6" style="text-align:center;">Carregando usuários...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div id="modal-usuario" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Cadastrar Novo Usuário</h3>
+            <span class="close-btn" onclick="fecharModalUsuario()">&times;</span>
+        </div>
+        <form id="form-usuario">
+            <div class="form-group">
+                <label>Nome Completo</label>
+                <input type="text" id="nome_user" required>
+            </div>
+            <div class="form-group">
+                <label>Email (Login)</label>
+                <input type="email" id="email_user" required>
+            </div>
+            <div class="form-group">
+                <label>Senha Temporária</label>
+                <input type="password" id="senha_user" required>
+            </div>
+            <div class="form-group">
+                <label>Perfil de Acesso</label>
+                <select id="tipo_user">
+                    <option value="colaborador">Colaborador (Faturista/Médico)</option>
+                    <option value="master">Administrador Master</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Clínica Vinculada</label>
+                <select id="clinica_id_user">
+                    <option value="">Nenhuma (Acesso Global)</option>
+                    </select>
+            </div>
+            <button type="submit" class="btn-primary" style="width: 100%;">Salvar Usuário</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const tokenStr = localStorage.getItem('access_token');
+
+    function abrirModalUsuario() { 
+        document.getElementById('modal-usuario').style.display = 'flex'; 
+        carregarOpcoesClinicas();
+    }
+    
+    function fecharModalUsuario() { 
+        document.getElementById('modal-usuario').style.display = 'none'; 
+    }
+
+    async function carregarOpcoesClinicas() {
+        try {
+            const response = await fetch('/api/v1/clinicas/', {
+                headers: { 'Authorization': `Bearer ${tokenStr}` }
+            });
+            const clinicas = await response.json();
+            const select = document.getElementById('clinica_id_user');
+            select.innerHTML = '<option value="">Nenhuma (Acesso Global)</option>';
+            clinicas.forEach(c => {
+                select.innerHTML += `<option value="${c.id}">${c.nome} (CNPJ: ${c.cnpj})</option>`;
+            });
+        } catch (e) { console.error('Erro ao carregar clínicas no select', e); }
+    }
+
+    async function carregarListaUsuarios() {
+        try {
+            const response = await fetch('/api/v1/usuarios/', {
+                headers: { 'Authorization': `Bearer ${tokenStr}` }
+            });
+            const usuarios = await response.json();
+            const tbody = document.getElementById('lista-usuarios');
+            tbody.innerHTML = '';
+
+            if(usuarios.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Nenhum usuário encontrado.</td></tr>';
+            } else {
+                usuarios.forEach(user => {
+                    const badge = user.tipo_usuario === 'master' ? '<span class="badge-master">Master</span>' : '<span class="badge-colab">Colaborador</span>';
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${user.id}</td>
+                            <td>${user.nome}</td>
+                            <td>${user.email}</td>
+                            <td>${badge}</td>
+                            <td>${user.clinica_id || 'Todas'}</td>
+                            <td style="color: ${user.ativo ? 'green' : 'red'};">${user.ativo ? 'Ativo' : 'Inativo'}</td>
+                        </tr>
+                    `;
+                });
+            }
+        } catch (error) { console.error('Erro ao carregar usuários:', error); }
+    }
+
+    document.getElementById('form-usuario').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const cid = document.getElementById('clinica_id_user').value;
+
+        const payload = {
+            nome: document.getElementById('nome_user').value,
+            email: document.getElementById('email_user').value,
+            senha: document.getElementById('senha_user').value,
+            tipo_usuario: document.getElementById('tipo_user').value,
+            clinica_id: cid ? parseInt(cid) : null
+        };
+
+        try {
+            const response = await fetch('/api/v1/usuarios/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${tokenStr}` },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                alert('Usuário cadastrado com sucesso!');
+                fecharModalUsuario();
+                document.getElementById('form-usuario').reset();
+                carregarListaUsuarios();
+            } else {
+                const erro = await response.json();
+                alert('Erro: ' + (erro.detail || 'Falha ao cadastrar.'));
+            }
+        } catch (error) { console.error('Erro ao salvar usuário:', error); }
+    });
+
+    document.addEventListener('DOMContentLoaded', carregarListaUsuarios);
+</script>
+{% endblock %}
