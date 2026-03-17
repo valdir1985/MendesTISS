@@ -12,7 +12,7 @@ from backend.services import auth_service
 from backend.core.security import create_access_token
 from backend.models.usuario import Usuario
 
-router = APIRouter()from fastapi import FastAPI
+
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles # <-- NOVA IMPORTAÇÃO
 from backend.config import settings
