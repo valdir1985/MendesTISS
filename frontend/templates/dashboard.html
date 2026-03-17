@@ -4,7 +4,6 @@
 
 {% block extra_css %}
 <style>
-    /* Estilos específicos para os cartões do Dashboard */
     .dashboard-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -33,10 +32,9 @@
         color: var(--text-main);
     }
 
-    /* Cores dinâmicas para os cartões */
-    .card.recebido { border-left-color: #10b981; } /* Verde */
-    .card.glosado { border-left-color: #ef4444; }  /* Vermelho */
-    .card.pendente { border-left-color: #f59e0b; } /* Amarelo */
+    .card.recebido { border-left-color: #10b981; } 
+    .card.glosado { border-left-color: #ef4444; }  
+    .card.pendente { border-left-color: #f59e0b; } 
 
     .section-title {
         margin-bottom: 15px;
@@ -44,66 +42,82 @@
         border-bottom: 2px solid var(--border-color);
         padding-bottom: 5px;
     }
+
+    /* Aviso de Clínica Faltante */
+    .alerta-clinica { background-color: #fee2e2; color: #991b1b; padding: 15px; border-radius: 6px; margin-bottom: 20px; font-weight: bold; display: none; }
 </style>
 {% endblock %}
 
 {% block content %}
-<h2 class="section-title">Resumo Financeiro</h2>
-
-<div class="dashboard-grid">
-    <div class="card">
-        <h3>Total Faturado</h3>
-        <div class="value" id="val-faturado">R$ 0,00</div>
-    </div>
-    <div class="card recebido">
-        <h3>Total Recebido</h3>
-        <div class="value" id="val-recebido">R$ 0,00</div>
-    </div>
-    <div class="card pendente">
-        <h3>A Receber (Em Análise)</h3>
-        <div class="value" id="val-areceber">R$ 0,00</div>
-    </div>
-    <div class="card glosado">
-        <h3>Total Glosado (Perdas)</h3>
-        <div class="value" id="val-glosado">R$ 0,00</div>
-    </div>
+<div id="alerta-clinica" class="alerta-clinica">
+    ⚠️ Por favor, selecione ou cadastre uma clínica no topo da página para ver o dashboard financeiro.
 </div>
 
-<h2 class="section-title">Status da Operação</h2>
-<div class="dashboard-grid" id="status-container">
-    <p>Carregando dados da operação...</p>
+<div id="conteudo-dashboard">
+    <h2 class="section-title">Resumo Financeiro</h2>
+
+    <div class="dashboard-grid">
+        <div class="card">
+            <h3>Total Faturado</h3>
+            <div class="value" id="val-faturado">R$ 0,00</div>
+        </div>
+        <div class="card recebido">
+            <h3>Total Recebido</h3>
+            <div class="value" id="val-recebido">R$ 0,00</div>
+        </div>
+        <div class="card pendente">
+            <h3>A Receber (Em Análise)</h3>
+            <div class="value" id="val-areceber">R$ 0,00</div>
+        </div>
+        <div class="card glosado">
+            <h3>Total Glosado (Perdas)</h3>
+            <div class="value" id="val-glosado">R$ 0,00</div>
+        </div>
+    </div>
+
+    <h2 class="section-title">Status da Operação</h2>
+    <div class="dashboard-grid" id="status-container">
+        <p>Carregando dados da operação...</p>
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    // Função para formatar números para Moeda (Real Brasileiro)
     const formatarMoeda = (valor) => {
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
     };
 
-    // Função que busca os dados na API
     async function carregarDashboard() {
         const token = localStorage.getItem('access_token');
+        const clinicaId = localStorage.getItem('clinica_ativa_id');
         
-        // Se não tiver token, volta para o login (segurança extra)
         if (!token) {
             window.location.href = '/login';
             return;
         }
 
+        // Bloqueia a visualização caso não haja clínica selecionada
+        if (!clinicaId) {
+            document.getElementById('conteudo-dashboard').style.display = 'none';
+            document.getElementById('alerta-clinica').style.display = 'block';
+            return;
+        } else {
+            document.getElementById('conteudo-dashboard').style.display = 'block';
+            document.getElementById('alerta-clinica').style.display = 'none';
+        }
+
         try {
-            // Chama a rota protegida da nossa API
             const response = await fetch('/api/v1/dashboard/resumo', {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-Clinica-Id': clinicaId // <-- INSERIDO AQUI
                 }
             });
 
             if (response.status === 401) {
-                // Token expirado ou inválido
                 fazerLogout();
                 return;
             }
@@ -111,19 +125,15 @@
             if (response.ok) {
                 const data = await response.json();
                 
-                // 1. Preenche os cartões financeiros
                 document.getElementById('val-faturado').innerText = formatarMoeda(data.financeiro.total_faturado);
                 document.getElementById('val-recebido').innerText = formatarMoeda(data.financeiro.total_recebido);
                 document.getElementById('val-areceber').innerText = formatarMoeda(data.financeiro.valor_a_receber);
                 document.getElementById('val-glosado').innerText = formatarMoeda(data.financeiro.total_glosado);
 
-                // 2. Preenche os status das guias de forma dinâmica
                 const statusContainer = document.getElementById('status-container');
-                statusContainer.innerHTML = ''; // Limpa o "Carregando..."
+                statusContainer.innerHTML = ''; 
 
-                // Itera sobre o dicionário de status que a API retorna (ex: {"digitada": 5, "enviada": 10})
                 for (const [status, quantidade] of Object.entries(data.status_guias)) {
-                    // Formata o texto (ex: "em_lote" vira "EM LOTE")
                     const nomeStatus = status.replace('_', ' ').toUpperCase();
                     
                     const cardStatus = `
@@ -136,7 +146,7 @@
                 }
 
                 if (Object.keys(data.status_guias).length === 0) {
-                    statusContainer.innerHTML = '<p style="color: #64748b;">Nenhuma guia registada no sistema ainda.</p>';
+                    statusContainer.innerHTML = '<p style="color: #64748b;">Nenhuma guia registada nesta clínica ainda.</p>';
                 }
 
             } else {
@@ -147,7 +157,6 @@
         }
     }
 
-    // Executa a função assim que a página carregar
     document.addEventListener('DOMContentLoaded', carregarDashboard);
 </script>
 {% endblock %}
