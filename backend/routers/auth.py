@@ -61,8 +61,7 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
         data={
             "sub": user.email,
             "tipo": user.tipo_usuario,
-            "clinica_id": user.clinica_id
-        }, 
+            }, 
         expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
