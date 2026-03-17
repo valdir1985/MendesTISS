@@ -30,8 +30,12 @@ def pagina_convenios(request: Request):
 def pagina_medicos(request: Request):
     return templates.TemplateResponse("medicos.html", {"request": request})
 
-# --- NOVA ROTA ADICIONADA AQUI ---
 @router.get("/guias", response_class=HTMLResponse)
 def pagina_guias(request: Request):
-    """Serve a página de Digitação de Guias."""
     return templates.TemplateResponse("guias.html", {"request": request})
+
+# --- NOVA ROTA ADICIONADA AQUI ---
+@router.get("/lotes", response_class=HTMLResponse)
+def pagina_lotes(request: Request):
+    """Serve a página de Agrupamento de Lotes TISS."""
+    return templates.TemplateResponse("lotes.html", {"request": request})
