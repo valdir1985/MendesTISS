@@ -4,30 +4,18 @@ from datetime import datetime
 
 class ClinicaBase(BaseModel):
     nome: str
-    cnpj: Optional[str] = None
-    ativo: Optional[bool] = True
+    cnpj: str
+    database_host: str = "localhost"
+    database_port: int = 5432
 
 class ClinicaCreate(ClinicaBase):
-    # Opcionais na criação inicial, podem ser preenchidos depois pelo sistema
-    database_name: Optional[str] = None
-    database_host: Optional[str] = None
-    database_port: Optional[int] = None
-    database_user: Optional[str] = None
-    database_password: Optional[str] = None
-
-class ClinicaUpdate(ClinicaBase):
-    nome: Optional[str] = None
-    database_name: Optional[str] = None
-    database_host: Optional[str] = None
-    database_port: Optional[int] = None
-    database_user: Optional[str] = None
-    database_password: Optional[str] = None
+    pass # Os dados sensíveis de DB serão gerados pelo backend no momento da criação
 
 class ClinicaResponse(ClinicaBase):
     id: int
-    database_name: Optional[str]
-    database_host: Optional[str]
-    database_port: Optional[int]
+    database_name: str
+    database_user: str
+    ativo: bool
     created_at: datetime
 
     class Config:
