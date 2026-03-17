@@ -17,7 +17,7 @@ def pagina_login(request: Request):
     """Serve a página de login."""
     return templates.TemplateResponse("login.html", {"request": request})
 
-# Apenas um placeholder para o Dashboard para o redirecionamento do login funcionar
 @router.get("/dashboard", response_class=HTMLResponse)
 def pagina_dashboard(request: Request):
-    return templates.TemplateResponse("base.html", {"request": request})
+    """Serve a página do Dashboard Financeiro."""
+    return templates.TemplateResponse("dashboard.html", {"request": request})
