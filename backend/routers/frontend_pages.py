@@ -18,19 +18,20 @@ def pagina_login(request: Request):
 def pagina_dashboard(request: Request):
     return templates.TemplateResponse("dashboard.html", {"request": request})
 
-# --- NOVA ROTA ADICIONADA AQUI ---
 @router.get("/pacientes", response_class=HTMLResponse)
 def pagina_pacientes(request: Request):
-    """Serve a página de gestão de Pacientes."""
     return templates.TemplateResponse("pacientes.html", {"request": request})
 
 @router.get("/convenios", response_class=HTMLResponse)
 def pagina_convenios(request: Request):
-    """Serve a página de gestão de Convênios (Operadoras)."""
     return templates.TemplateResponse("convenios.html", {"request": request})
 
-# --- NOVA ROTA ADICIONADA AQUI ---
 @router.get("/medicos", response_class=HTMLResponse)
 def pagina_medicos(request: Request):
-    """Serve a página de gestão de Médicos."""
     return templates.TemplateResponse("medicos.html", {"request": request})
+
+# --- NOVA ROTA ADICIONADA AQUI ---
+@router.get("/guias", response_class=HTMLResponse)
+def pagina_guias(request: Request):
+    """Serve a página de Digitação de Guias."""
+    return templates.TemplateResponse("guias.html", {"request": request})
