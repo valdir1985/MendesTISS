@@ -20,6 +20,7 @@ class LoteGuiaResponse(BaseModel):
 
 class LoteResponse(BaseModel):
     id: int
+    clinica_id: int # <-- NOVO
     numero_lote: str
     convenio_id: int
     status: str
