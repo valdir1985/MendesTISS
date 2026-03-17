@@ -2,20 +2,23 @@ from sqlalchemy.orm import Session
 from backend.models.guia import Guia, GuiaProcedimento
 from backend.schemas.guia import GuiaCreate, GuiaStatusUpdate
 
-def get_guia(db: Session, guia_id: int):
-    return db.query(Guia).filter(Guia.id == guia_id).first()
+def get_guia(db: Session, guia_id: int, clinica_id: int):
+    # <-- Verifica se a guia pertence à clínica
+    return db.query(Guia).filter(Guia.id == guia_id, Guia.clinica_id == clinica_id).first()
 
-def get_guias(db: Session, skip: int = 0, limit: int = 100, paciente_id: int = None, status: str = None):
-    query = db.query(Guia)
+def get_guias(db: Session, clinica_id: int, skip: int = 0, limit: int = 100, paciente_id: int = None, status: str = None):
+    # <-- Filtra as guias da clínica
+    query = db.query(Guia).filter(Guia.clinica_id == clinica_id)
     if paciente_id:
         query = query.filter(Guia.paciente_id == paciente_id)
     if status:
         query = query.filter(Guia.status == status)
     return query.offset(skip).limit(limit).all()
 
-def create_guia(db: Session, guia_in: GuiaCreate):
+def create_guia(db: Session, guia_in: GuiaCreate, clinica_id: int):
     # 1. Cria a entidade base da Guia
     db_guia = Guia(
+        clinica_id=clinica_id, # <-- INJETADO AQUI
         paciente_id=guia_in.paciente_id,
         medico_executante_id=guia_in.medico_executante_id,
         medico_solicitante_id=guia_in.medico_solicitante_id,
@@ -56,8 +59,9 @@ def create_guia(db: Session, guia_in: GuiaCreate):
     
     return db_guia
 
-def update_guia_status(db: Session, guia_id: int, status_update: GuiaStatusUpdate):
-    db_guia = get_guia(db, guia_id)
+def update_guia_status(db: Session, guia_id: int, status_update: GuiaStatusUpdate, clinica_id: int):
+    # <-- Verifica clinica_id por segurança
+    db_guia = get_guia(db, guia_id, clinica_id)
     if not db_guia:
         return None
         
