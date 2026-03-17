@@ -4,10 +4,10 @@ from backend.config import settings
 from backend.database import engine, Base
 
 # Importamos todos os routers construídos até agora
-from backend.routers import auth, clinicas, usuarios, pacientes, medicos, convenios, planos, tabelas, procedimentos, guias, lotes, tiss_engine
+from backend.routers import auth, clinicas, usuarios, pacientes, medicos, convenios, planos, tabelas, procedimentos, guias, lotes, tiss_engine, retornos
 
-# Importamos os models
-from backend.models import convite, paciente, medico, convenio, plano, tabela, procedimento, guia, lote
+# Importamos os models para criar as tabelas
+from backend.models import convite, paciente, medico, convenio, plano, tabela, procedimento, guia, lote, retorno # <-- Importado o retorno
 
 # Cria as tabelas na base de dados
 Base.metadata.create_all(bind=engine)
@@ -38,7 +38,8 @@ app.include_router(tabelas.router, prefix=f"{settings.API_V1_STR}/tabelas", tags
 app.include_router(procedimentos.router, prefix=f"{settings.API_V1_STR}/procedimentos", tags=["Procedimentos"])
 app.include_router(guias.router, prefix=f"{settings.API_V1_STR}/guias", tags=["Guias de Faturamento"])
 app.include_router(lotes.router, prefix=f"{settings.API_V1_STR}/lotes", tags=["Lotes TISS"])
-app.include_router(tiss_engine.router, prefix=f"{settings.API_V1_STR}/tiss", tags=["Engine TISS (XML)"]) # <-- NOVA ROTA
+app.include_router(tiss_engine.router, prefix=f"{settings.API_V1_STR}/tiss", tags=["Engine TISS (XML)"])
+app.include_router(retornos.router, prefix=f"{settings.API_V1_STR}/retornos", tags=["Retornos e Glosas"]) # <-- NOVA ROTA
 
 @app.get("/")
 def root():
