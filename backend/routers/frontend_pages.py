@@ -34,8 +34,12 @@ def pagina_medicos(request: Request):
 def pagina_guias(request: Request):
     return templates.TemplateResponse("guias.html", {"request": request})
 
-# --- NOVA ROTA ADICIONADA AQUI ---
 @router.get("/lotes", response_class=HTMLResponse)
 def pagina_lotes(request: Request):
-    """Serve a página de Agrupamento de Lotes TISS."""
     return templates.TemplateResponse("lotes.html", {"request": request})
+
+# --- NOVA ROTA ADICIONADA AQUI ---
+@router.get("/retornos", response_class=HTMLResponse)
+def pagina_retornos(request: Request):
+    """Serve a página de Importação de Retornos e Glosas."""
+    return templates.TemplateResponse("retornos.html", {"request": request})
