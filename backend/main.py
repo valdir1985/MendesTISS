@@ -4,9 +4,9 @@ from backend.config import settings
 from backend.database import engine, Base
 
 # Importamos todos os routers construídos até agora
-from backend.routers import auth, clinicas, usuarios, pacientes, medicos, convenios, planos, tabelas, procedimentos, guias, lotes
+from backend.routers import auth, clinicas, usuarios, pacientes, medicos, convenios, planos, tabelas, procedimentos, guias, lotes, tiss_engine
 
-# Importamos os models para garantir que o SQLAlchemy cria as tabelas no arranque
+# Importamos os models
 from backend.models import convite, paciente, medico, convenio, plano, tabela, procedimento, guia, lote
 
 # Cria as tabelas na base de dados
@@ -37,7 +37,8 @@ app.include_router(planos.router, prefix=f"{settings.API_V1_STR}/planos", tags=[
 app.include_router(tabelas.router, prefix=f"{settings.API_V1_STR}/tabelas", tags=["Tabelas de Domínio"])
 app.include_router(procedimentos.router, prefix=f"{settings.API_V1_STR}/procedimentos", tags=["Procedimentos"])
 app.include_router(guias.router, prefix=f"{settings.API_V1_STR}/guias", tags=["Guias de Faturamento"])
-app.include_router(lotes.router, prefix=f"{settings.API_V1_STR}/lotes", tags=["Lotes TISS"]) # <-- NOVA ROTA
+app.include_router(lotes.router, prefix=f"{settings.API_V1_STR}/lotes", tags=["Lotes TISS"])
+app.include_router(tiss_engine.router, prefix=f"{settings.API_V1_STR}/tiss", tags=["Engine TISS (XML)"]) # <-- NOVA ROTA
 
 @app.get("/")
 def root():
