@@ -23,3 +23,8 @@ def pagina_dashboard(request: Request):
 def pagina_pacientes(request: Request):
     """Serve a página de gestão de Pacientes."""
     return templates.TemplateResponse("pacientes.html", {"request": request})
+
+@router.get("/convenios", response_class=HTMLResponse)
+def pagina_convenios(request: Request):
+    """Serve a página de gestão de Convênios (Operadoras)."""
+    return templates.TemplateResponse("convenios.html", {"request": request})
