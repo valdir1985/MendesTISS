@@ -8,6 +8,9 @@ class Guia(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     
+    # NOVO: Vínculo obrigatório com a Clínica
+    clinica_id = Column(Integer, ForeignKey("clinicas.id"), nullable=False, index=True)
+
     # Relações com as entidades do sistema
     paciente_id = Column(Integer, ForeignKey("pacientes.id"), nullable=False, index=True)
     medico_executante_id = Column(Integer, ForeignKey("medicos.id"), nullable=False, index=True)
