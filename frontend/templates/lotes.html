@@ -84,19 +84,34 @@
 <script>
     const token = localStorage.getItem('access_token');
     
+    // Função auxiliar segura para pegar o ID da Clínica
+    function getClinicaId() {
+        const id = localStorage.getItem('clinica_ativa_id');
+        if (!id) alert('Por favor, selecione uma clínica no topo da página primeiro.');
+        return id;
+    }
+
     const formatarMoeda = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
     const formatarData = (d) => new Date(d).toLocaleDateString('pt-BR');
 
     async function carregarLotes() {
+        const clinicaId = getClinicaId();
+        if(!clinicaId) return;
+
         try {
-            const response = await fetch('/api/v1/lotes/', { headers: { 'Authorization': `Bearer ${token}` } });
+            const response = await fetch('/api/v1/lotes/', { 
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'X-Clinica-Id': clinicaId 
+                } 
+            });
             if (response.ok) {
                 const lotes = await response.json();
                 const tbody = document.getElementById('tabela-lotes');
                 tbody.innerHTML = '';
 
                 if (lotes.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Nenhum lote gerado.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Nenhum lote gerado para esta clínica.</td></tr>';
                     return;
                 }
 
@@ -104,7 +119,6 @@
                     const classeBadge = l.status === 'aberto' ? 'badge-aberto' : 'badge-enviado';
                     const protocolo = l.numero_protocolo || '<span style="color:#94a3b8;">Não enviado</span>';
                     
-                    // Botões de Ação
                     let botoes = `<button class="btn-acao btn-xml" onclick="baixarXML(${l.id})">⬇️ XML</button>`;
                     
                     if (l.status === 'aberto') {
@@ -127,12 +141,18 @@
     }
 
     async function abrirModal() {
+        const clinicaId = getClinicaId();
+        if(!clinicaId) return;
+
         document.getElementById('modalLote').style.display = 'flex';
-        // Carregar a lista de convénios
         try {
-            const res = await fetch('/api/v1/convenios/', { headers: { 'Authorization': `Bearer ${token}` } });
+            const res = await fetch('/api/v1/convenios/', { 
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'X-Clinica-Id': clinicaId 
+                } 
+            });
             if (res.ok) {
-                // CORREÇÃO AQUI: mudamos de response.json() para res.json()
                 const convenios = await res.json(); 
                 const select = document.getElementById('lote-convenio');
                 
@@ -155,11 +175,12 @@
     }
 
     async function carregarGuiasDisponiveis() {
+        const clinicaId = getClinicaId();
         const convenioId = document.getElementById('lote-convenio').value;
         const listaDiv = document.getElementById('lista-guias-disponiveis');
         const btnSalvar = document.getElementById('btn-salvar-lote');
 
-        if (!convenioId) {
+        if (!convenioId || !clinicaId) {
             listaDiv.innerHTML = '<div style="text-align: center; padding: 10px; color: #64748b;">Selecione um convénio primeiro.</div>';
             btnSalvar.disabled = true;
             return;
@@ -168,12 +189,14 @@
         listaDiv.innerHTML = 'Carregando guias pendentes...';
 
         try {
-            // Busca apenas as guias com status 'digitada'
-            const response = await fetch(`/api/v1/guias/?status_guia=digitada`, { headers: { 'Authorization': `Bearer ${token}` } });
+            const response = await fetch(`/api/v1/guias/?status_guia=digitada`, { 
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'X-Clinica-Id': clinicaId 
+                } 
+            });
             if (response.ok) {
                 const guias = await response.json();
-                
-                // Filtra no frontend as guias que pertencem ao convénio selecionado
                 const guiasDoConvenio = guias.filter(g => g.convenio_id == convenioId);
                 
                 listaDiv.innerHTML = '';
@@ -205,9 +228,10 @@
         document.getElementById('btn-salvar-lote').disabled = checkboxes.length === 0;
     }
 
-    // SALVAR LOTE (POST)
     document.getElementById('form-lote').addEventListener('submit', async function(e) {
         e.preventDefault();
+        const clinicaId = getClinicaId();
+        if(!clinicaId) return;
 
         const convenio_id = parseInt(document.getElementById('lote-convenio').value);
         const checkboxes = document.querySelectorAll('input[name="guias_selecionadas"]:checked');
@@ -216,7 +240,11 @@
         try {
             const response = await fetch('/api/v1/lotes/', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${token}`,
+                    'X-Clinica-Id': clinicaId 
+                },
                 body: JSON.stringify({ convenio_id, guias_ids })
             });
 
@@ -231,29 +259,26 @@
         } catch (error) { console.error(error); }
     });
 
-    
-   // AÇÕES ESPECIAIS: BAIXAR XML E INFORMAR PROTOCOLO
     async function baixarXML(lote_id) {
+        const clinicaId = getClinicaId();
+        if(!clinicaId) return;
+
         try {
-            // 1. Fazemos a requisição com o Token de segurança
             const response = await fetch(`/api/v1/tiss/lotes/${lote_id}/xml`, {
                 method: 'GET',
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'X-Clinica-Id': clinicaId 
+                }
             });
 
             if (response.ok) {
-                // 2. Transformamos a resposta num ficheiro físico (Blob)
                 const blob = await response.blob();
-                
-                // 3. Criamos um link temporário na memória do navegador para forçar o download
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.style.display = 'none';
                 a.href = url;
-                // O nome do ficheiro que será salvo no computador
                 a.download = `Lote_TISS_MendesTiss_${lote_id}.xml`; 
-                
-                // Clica no link invisível e depois limpa a memória
                 document.body.appendChild(a);
                 a.click();
                 window.URL.revokeObjectURL(url);
@@ -268,19 +293,26 @@
     }
 
     async function informarProtocolo(lote_id) {
+        const clinicaId = getClinicaId();
+        if(!clinicaId) return;
+
         const protocolo = prompt("Digite o número do protocolo de recebimento da operadora:");
         if (!protocolo) return;
 
         try {
             const response = await fetch(`/api/v1/lotes/${lote_id}/enviar`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${token}`,
+                    'X-Clinica-Id': clinicaId
+                },
                 body: JSON.stringify({ numero_protocolo: protocolo })
             });
 
             if (response.ok) {
                 alert('Lote marcado como enviado!');
-                carregarLotes(); // Atualiza a tabela
+                carregarLotes(); 
             } else {
                 alert('Erro ao registar o envio.');
             }
