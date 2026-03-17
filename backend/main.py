@@ -1,21 +1,21 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles # <-- NOVA IMPORTAÇÃO
 from backend.config import settings
 from backend.database import engine, Base
 
-# Importamos todos os routers construídos
+# Importamos os routers da API
 from backend.routers import (
     auth, clinicas, usuarios, pacientes, medicos, convenios, planos, 
-    tabelas, procedimentos, guias, lotes, tiss_engine, retornos, glosas, recursos, dashboard
+    tabelas, procedimentos, guias, lotes, tiss_engine, retornos, glosas, recursos, dashboard,
+    frontend_pages # <-- NOVA IMPORTAÇÃO (Router das páginas HTML)
 )
 
-# Importamos os models para garantir a criação das tabelas
 from backend.models import (
     convite, paciente, medico, convenio, plano, tabela, 
     procedimento, guia, lote, retorno, recurso_glosa
 )
 
-# Cria as tabelas na base de dados
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
@@ -32,7 +32,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Registo das rotas (Endpoints)
+# --- CONFIGURAÇÃO DO FRONTEND ---
+# Monta a pasta de arquivos estáticos (CSS, JS) para ser acessível no navegador
+app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
+
+# Regista as rotas das páginas HTML (Sem prefixo de API)
+app.include_router(frontend_pages.router, tags=["Páginas Web"])
+
+
+# --- REGISTO DAS ROTAS DA API (Manteve-se igual) ---
 app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["Autenticação"])
 app.include_router(clinicas.router, prefix=f"{settings.API_V1_STR}/clinicas", tags=["Clínicas"])
 app.include_router(usuarios.router, prefix=f"{settings.API_V1_STR}/usuarios", tags=["Usuários"])
@@ -48,8 +56,4 @@ app.include_router(tiss_engine.router, prefix=f"{settings.API_V1_STR}/tiss", tag
 app.include_router(retornos.router, prefix=f"{settings.API_V1_STR}/retornos", tags=["Retornos"])
 app.include_router(glosas.router, prefix=f"{settings.API_V1_STR}/glosas", tags=["Gestão de Glosas"])
 app.include_router(recursos.router, prefix=f"{settings.API_V1_STR}/recursos", tags=["Recursos de Glosa"])
-app.include_router(dashboard.router, prefix=f"{settings.API_V1_STR}/dashboard", tags=["Dashboard Financeiro"]) # <-- NOVA ROTA
-
-@app.get("/")
-def root():
-    return {"message": "Bem-vindo à API Master do sistema de faturamento MendesTiss."}
+app.include_router(dashboard.router, prefix=f"{settings.API_V1_STR}/dashboard", tags=["Dashboard Financeiro"])
