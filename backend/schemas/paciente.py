@@ -5,7 +5,12 @@ from datetime import datetime
 class PacienteCreate(BaseModel):
     nome: str
     numero_carteira: Optional[str] = None
-    # Não colocamos clinica_id aqui porque o utilizador não o digita, ele vem do sistema.
+    # Não colocamos clinica_id aqui porque ele é injetado pelo backend
+
+# --- CORREÇÃO: ADICIONADO O SCHEMA DE ATUALIZAÇÃO ---
+class PacienteUpdate(BaseModel):
+    nome: Optional[str] = None
+    numero_carteira: Optional[str] = None
 
 class PacienteResponse(BaseModel):
     id: int
