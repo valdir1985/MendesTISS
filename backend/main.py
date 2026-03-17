@@ -4,10 +4,10 @@ from backend.config import settings
 from backend.database import engine, Base
 
 # Importamos todos os routers construídos até agora
-from backend.routers import auth, clinicas, usuarios, pacientes, medicos, convenios, planos, tabelas, procedimentos, guias
+from backend.routers import auth, clinicas, usuarios, pacientes, medicos, convenios, planos, tabelas, procedimentos, guias, lotes
 
 # Importamos os models para garantir que o SQLAlchemy cria as tabelas no arranque
-from backend.models import convite, paciente, medico, convenio, plano, tabela, procedimento, guia
+from backend.models import convite, paciente, medico, convenio, plano, tabela, procedimento, guia, lote
 
 # Cria as tabelas na base de dados
 Base.metadata.create_all(bind=engine)
@@ -36,7 +36,8 @@ app.include_router(convenios.router, prefix=f"{settings.API_V1_STR}/convenios", 
 app.include_router(planos.router, prefix=f"{settings.API_V1_STR}/planos", tags=["Planos"])
 app.include_router(tabelas.router, prefix=f"{settings.API_V1_STR}/tabelas", tags=["Tabelas de Domínio"])
 app.include_router(procedimentos.router, prefix=f"{settings.API_V1_STR}/procedimentos", tags=["Procedimentos"])
-app.include_router(guias.router, prefix=f"{settings.API_V1_STR}/guias", tags=["Guias de Faturamento"]) # <-- NOVA ROTA
+app.include_router(guias.router, prefix=f"{settings.API_V1_STR}/guias", tags=["Guias de Faturamento"])
+app.include_router(lotes.router, prefix=f"{settings.API_V1_STR}/lotes", tags=["Lotes TISS"]) # <-- NOVA ROTA
 
 @app.get("/")
 def root():
