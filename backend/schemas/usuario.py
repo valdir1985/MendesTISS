@@ -1,50 +1,30 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
-from uuid import UUID
 
-# --- SCHEMAS DE USUÁRIO ---
-class UsuarioCreate(BaseModel):
+# Base Schema
+class UsuarioBase(BaseModel):
     nome: str
     email: EmailStr
-    senha: str
     tipo_usuario: str = "colaborador"
+    clinica_id: Optional[int] = None
 
-class UsuarioUpdate(BaseModel):
-    nome: Optional[str] = None
-    tipo_usuario: Optional[str] = None
-    ativo: Optional[bool] = None
+# Schema para Criação
+class UsuarioCreate(UsuarioBase):
+    senha: str
 
-class UsuarioResponse(BaseModel):
+# Schema de Retorno (Response)
+class UsuarioResponse(UsuarioBase):
     id: int
-    nome: str
-    email: EmailStr
-    tipo_usuario: str
     ativo: bool
     email_verificado: bool
     created_at: datetime
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
 
-# --- SCHEMAS DE CONVITE ---
-class ConviteCreate(BaseModel):
-    email: EmailStr
-    tipo_usuario: str = "colaborador"
-
-class ConviteResponse(BaseModel):
-    id: int
-    email: EmailStr
-    tipo_usuario: str
-    token_convite: UUID
-    expira_em: datetime
-    utilizado: bool
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-# --- SCHEMAS DE LOGIN ---
+# Schemas para Autenticação / JWT
 class Token(BaseModel):
     access_token: str
     token_type: str
