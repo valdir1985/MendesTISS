@@ -1,76 +1,39 @@
-import string
-import random
-import psycopg2
-from psycopg2 import sql
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from fastapi import HTTPException, status
 from backend.models.clinica import Clinica
 from backend.schemas.clinica import ClinicaCreate
-from backend.config import settings
-
-def gerar_senha_aleatoria(tamanho=12):
-    caracteres = string.ascii_letters + string.digits + "!@#$%^&*"
-    return ''.join(random.choice(caracteres) for i in range(tamanho))
-
-def criar_banco_dados_tenant(db_name: str, db_user: str, db_password: str):
-    """Conecta diretamente no PostgreSQL para provisionar o banco e o usuário da nova clínica."""
-    try:
-        # Pega a URL do master mas isola os componentes usando psycopg2
-        # Em produção, essas credenciais devem ser as de um superuser do PostgreSQL
-        conn = psycopg2.connect(settings.DATABASE_URL)
-        conn.autocommit = True
-        cursor = conn.cursor()
-
-        # Verifica se o usuário já existe
-        cursor.execute("SELECT 1 FROM pg_roles WHERE rolname=%s", (db_user,))
-        if not cursor.fetchone():
-            cursor.execute(
-                sql.SQL("CREATE USER {} WITH PASSWORD %s").format(sql.Identifier(db_user)),
-                [db_password]
-            )
-
-        # Verifica se o banco já existe
-        cursor.execute("SELECT 1 FROM pg_database WHERE datname=%s", (db_name,))
-        if not cursor.fetchone():
-            cursor.execute(
-                sql.SQL("CREATE DATABASE {} OWNER {}").format(
-                    sql.Identifier(db_name),
-                    sql.Identifier(db_user)
-                )
-            )
-        
-        cursor.close()
-        conn.close()
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erro ao provisionar banco de dados da clínica: {str(e)}"
-        )
 
 def create_clinica(db: Session, clinica: ClinicaCreate):
-    # Verifica se já existe CNPJ
+    # Verifica se já existe CNPJ cadastrado
     clinica_existente = db.query(Clinica).filter(Clinica.cnpj == clinica.cnpj).first()
     if clinica_existente:
-        raise HTTPException(status_code=400, detail="CNPJ já cadastrado.")
+        raise HTTPException(status_code=400, detail="CNPJ já cadastrado no sistema.")
 
-    # Gera credenciais automáticas para a clínica
+    # Cria um nome de schema único para a clínica baseado no CNPJ
     sufixo = clinica.cnpj.replace(".", "").replace("/", "").replace("-", "")[:8]
-    db_name = f"tenant_{sufixo}"
-    db_user = f"user_{sufixo}"
-    db_password = gerar_senha_aleatoria()
+    schema_name = f"tenant_{sufixo}"
 
-    # Provisiona o banco físico
-    criar_banco_dados_tenant(db_name, db_user, db_password)
+    # Provisiona o ambiente isolado da clínica no Supabase usando Schemas
+    try:
+        db.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema_name}"))
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erro ao provisionar ambiente da clínica no Supabase: {str(e)}"
+        )
 
-    # Registra no MASTER_DB
+    # Registra a clínica no banco Master
     nova_clinica = Clinica(
         nome=clinica.nome,
         cnpj=clinica.cnpj,
-        database_name=db_name,
-        database_host=clinica.database_host,
-        database_port=clinica.database_port,
-        database_user=db_user,
-        database_password=db_password
+        database_name=schema_name,  # Salvamos o nome do Schema aqui!
+        database_host="supabase",   # Host unificado
+        database_port=5432,
+        database_user="master_admin",
+        database_password="-"
     )
     
     db.add(nova_clinica)
