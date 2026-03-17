@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}MendesTiss{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            MendesTiss
+        </div>
+        <ul class="sidebar-menu">
+            <li><a href="/dashboard">Dashboard</a></li>
+            <li><a href="/pacientes">Pacientes</a></li>
+            <li><a href="/guias">Digitação de Guias</a></li>
+            <li><a href="/lotes">Lotes TISS</a></li>
+            <li><a href="/retornos">Retornos & Glosas</a></li>
+        </ul>
+    </aside>
+
+    <div class="main-wrapper">
+        <header class="topbar">
+            <div class="user-info">
+                <span id="user-name-display">Carregando...</span>
+                <button class="btn-primary" onclick="fazerLogout()" style="margin-left: 15px; padding: 5px 10px; font-size: 0.9rem;">Sair</button>
+            </div>
+        </header>
+
+        <main class="content-area">
+            {% block content %}
+            {% endblock %}
+        </main>
+    </div>
+
+    <script>
+        // Sempre que uma página base carregar, verifica se o utilizador está logado
+        document.addEventListener("DOMContentLoaded", function() {
+            const token = localStorage.getItem("access_token");
+            if (!token) {
+                window.location.href = "/login";
+            } else {
+                // Num sistema real, aqui faríamos um GET para /api/v1/auth/me para preencher o nome
+                document.getElementById("user-name-display").innerText = "Usuário Logado";
+            }
+        });
+
+        function fazerLogout() {
+            localStorage.removeItem("access_token");
+            window.location.href = "/login";
+        }
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
