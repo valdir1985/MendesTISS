@@ -3,11 +3,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.config import settings
 from backend.database import engine, Base
 
-# Importamos todos os routers construídos até agora
-from backend.routers import auth, clinicas, usuarios, pacientes, medicos, convenios, planos, tabelas, procedimentos, guias, lotes, tiss_engine, retornos, glosas, recursos
+# Importamos todos os routers construídos
+from backend.routers import (
+    auth, clinicas, usuarios, pacientes, medicos, convenios, planos, 
+    tabelas, procedimentos, guias, lotes, tiss_engine, retornos, glosas, recursos, dashboard
+)
 
 # Importamos os models para garantir a criação das tabelas
-from backend.models import convite, paciente, medico, convenio, plano, tabela, procedimento, guia, lote, retorno, recurso_glosa # <-- Adicionado recurso_glosa
+from backend.models import (
+    convite, paciente, medico, convenio, plano, tabela, 
+    procedimento, guia, lote, retorno, recurso_glosa
+)
 
 # Cria as tabelas na base de dados
 Base.metadata.create_all(bind=engine)
@@ -41,8 +47,9 @@ app.include_router(lotes.router, prefix=f"{settings.API_V1_STR}/lotes", tags=["L
 app.include_router(tiss_engine.router, prefix=f"{settings.API_V1_STR}/tiss", tags=["Engine TISS (XML)"])
 app.include_router(retornos.router, prefix=f"{settings.API_V1_STR}/retornos", tags=["Retornos"])
 app.include_router(glosas.router, prefix=f"{settings.API_V1_STR}/glosas", tags=["Gestão de Glosas"])
-app.include_router(recursos.router, prefix=f"{settings.API_V1_STR}/recursos", tags=["Recursos de Glosa"]) # <-- NOVA ROTA
+app.include_router(recursos.router, prefix=f"{settings.API_V1_STR}/recursos", tags=["Recursos de Glosa"])
+app.include_router(dashboard.router, prefix=f"{settings.API_V1_STR}/dashboard", tags=["Dashboard Financeiro"]) # <-- NOVA ROTA
 
 @app.get("/")
 def root():
-    return {"message": "Bem-vindo à API Master do sistema de faturamento."}
+    return {"message": "Bem-vindo à API Master do sistema de faturamento MendesTiss."}
