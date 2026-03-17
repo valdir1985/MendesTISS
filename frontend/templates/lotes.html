@@ -1,37 +1,257 @@
-from fastapi import APIRouter, Request
-from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, RedirectResponse
+{% extends "base.html" %}
 
-router = APIRouter()
+{% block title %}Lotes TISS - MendesTiss{% endblock %}
 
-templates = Jinja2Templates(directory="frontend/templates")
+{% block extra_css %}
+<style>
+    .table-container { background: var(--white); border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden; margin-top: 20px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid var(--border-color); }
+    th { background-color: #f1f5f9; color: var(--text-main); font-weight: 600; }
+    tr:hover { background-color: #f8fafc; }
 
-@router.get("/", response_class=HTMLResponse)
-def root_redirect():
-    return RedirectResponse(url="/login")
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center; }
+    .modal-content { background-color: var(--white); padding: 25px; border-radius: 8px; width: 100%; max-width: 700px; max-height: 90vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .close-btn { cursor: pointer; font-size: 1.5rem; font-weight: bold; color: #94a3b8; }
+    .header-actions { display: flex; justify-content: space-between; align-items: center; }
+    
+    .badge { padding: 5px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; text-transform: uppercase; }
+    .badge-aberto { background-color: #e0f2fe; color: #0369a1; }
+    .badge-enviado { background-color: #dcfce7; color: #166534; }
 
-@router.get("/login", response_class=HTMLResponse)
-def pagina_login(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
+    .btn-acao { background-color: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 0.85rem; margin-right: 5px; transition: 0.2s;}
+    .btn-acao:hover { background-color: #e2e8f0; }
+    .btn-xml { background-color: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+    .btn-xml:hover { background-color: #dcfce7; }
 
-@router.get("/dashboard", response_class=HTMLResponse)
-def pagina_dashboard(request: Request):
-    return templates.TemplateResponse("dashboard.html", {"request": request})
+    .guia-checkbox-list { border: 1px solid var(--border-color); padding: 10px; border-radius: 6px; max-height: 250px; overflow-y: auto; margin-top: 10px; background: #f8fafc;}
+    .guia-item { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #e2e8f0; }
+    .guia-item:last-child { border-bottom: none; }
+</style>
+{% endblock %}
 
-@router.get("/pacientes", response_class=HTMLResponse)
-def pagina_pacientes(request: Request):
-    return templates.TemplateResponse("pacientes.html", {"request": request})
+{% block content %}
+<div class="header-actions">
+    <h2 class="section-title">Lotes de Faturamento TISS</h2>
+    <button class="btn-primary" onclick="abrirModal()">+ Fechar Novo Lote</button>
+</div>
 
-@router.get("/convenios", response_class=HTMLResponse)
-def pagina_convenios(request: Request):
-    return templates.TemplateResponse("convenios.html", {"request": request})
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Nº do Lote</th>
+                <th>Data Criação</th>
+                <th>Status</th>
+                <th>Valor Total</th>
+                <th>Protocolo</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody id="tabela-lotes">
+            <tr><td colspan="6" style="text-align: center;">Carregando lotes...</td></tr>
+        </tbody>
+    </table>
+</div>
 
-@router.get("/medicos", response_class=HTMLResponse)
-def pagina_medicos(request: Request):
-    return templates.TemplateResponse("medicos.html", {"request": request})
+<div id="modalLote" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Agrupar Guias em Lote</h3>
+            <span class="close-btn" onclick="fecharModal()">&times;</span>
+        </div>
+        <form id="form-lote">
+            <label for="lote-convenio">Selecione o Convénio (Operadora) *</label>
+            <select id="lote-convenio" class="form-control" required onchange="carregarGuiasDisponiveis()">
+                <option value="">Carregando...</option>
+            </select>
+            
+            <label>Selecione as Guias para este Lote:</label>
+            <div class="guia-checkbox-list" id="lista-guias-disponiveis">
+                <div style="text-align: center; padding: 10px; color: #64748b;">
+                    Selecione um convénio primeiro.
+                </div>
+            </div>
+            
+            <button type="submit" class="btn-primary" style="width: 100%; margin-top: 15px;" id="btn-salvar-lote" disabled>Gerar Lote</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
 
-# --- NOVA ROTA ADICIONADA AQUI ---
-@router.get("/guias", response_class=HTMLResponse)
-def pagina_guias(request: Request):
-    """Serve a página de Digitação de Guias."""
-    return templates.TemplateResponse("guias.html", {"request": request})
+{% block extra_js %}
+<script>
+    const token = localStorage.getItem('access_token');
+    
+    const formatarMoeda = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+    const formatarData = (d) => new Date(d).toLocaleDateString('pt-BR');
+
+    async function carregarLotes() {
+        try {
+            const response = await fetch('/api/v1/lotes/', { headers: { 'Authorization': `Bearer ${token}` } });
+            if (response.ok) {
+                const lotes = await response.json();
+                const tbody = document.getElementById('tabela-lotes');
+                tbody.innerHTML = '';
+
+                if (lotes.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Nenhum lote gerado.</td></tr>';
+                    return;
+                }
+
+                lotes.forEach(l => {
+                    const classeBadge = l.status === 'aberto' ? 'badge-aberto' : 'badge-enviado';
+                    const protocolo = l.numero_protocolo || '<span style="color:#94a3b8;">Não enviado</span>';
+                    
+                    // Botões de Ação
+                    let botoes = `<button class="btn-acao btn-xml" onclick="baixarXML(${l.id})">⬇️ XML</button>`;
+                    
+                    if (l.status === 'aberto') {
+                        botoes += `<button class="btn-acao" onclick="informarProtocolo(${l.id})">📩 Marcar Enviado</button>`;
+                    }
+
+                    tbody.innerHTML += `
+                        <tr>
+                            <td><strong>${l.numero_lote}</strong></td>
+                            <td>${formatarData(l.created_at)}</td>
+                            <td><span class="badge ${classeBadge}">${l.status}</span></td>
+                            <td>${formatarMoeda(l.valor_total)}</td>
+                            <td>${protocolo}</td>
+                            <td>${botoes}</td>
+                        </tr>
+                    `;
+                });
+            }
+        } catch (error) { console.error('Erro ao carregar lotes:', error); }
+    }
+
+    async function abrirModal() {
+        document.getElementById('modalLote').style.display = 'flex';
+        // Carregar a lista de convénios
+        try {
+            const res = await fetch('/api/v1/convenios/', { headers: { 'Authorization': `Bearer ${token}` } });
+            if (res.ok) {
+                const convenios = await response.json();
+                const select = document.getElementById('lote-convenio');
+                select.innerHTML = '<option value="">Selecione a Operadora...</option>';
+                convenios.forEach(c => {
+                    select.innerHTML += `<option value="${c.id}">${c.nome} (ANS: ${c.registro_ans})</option>`;
+                });
+            }
+        } catch (e) { console.error('Erro convenios'); }
+    }
+
+    function fecharModal() {
+        document.getElementById('modalLote').style.display = 'none';
+        document.getElementById('form-lote').reset();
+        document.getElementById('lista-guias-disponiveis').innerHTML = '<div style="text-align: center; padding: 10px; color: #64748b;">Selecione um convénio primeiro.</div>';
+        document.getElementById('btn-salvar-lote').disabled = true;
+    }
+
+    async function carregarGuiasDisponiveis() {
+        const convenioId = document.getElementById('lote-convenio').value;
+        const listaDiv = document.getElementById('lista-guias-disponiveis');
+        const btnSalvar = document.getElementById('btn-salvar-lote');
+
+        if (!convenioId) {
+            listaDiv.innerHTML = '<div style="text-align: center; padding: 10px; color: #64748b;">Selecione um convénio primeiro.</div>';
+            btnSalvar.disabled = true;
+            return;
+        }
+
+        listaDiv.innerHTML = 'Carregando guias pendentes...';
+
+        try {
+            // Busca apenas as guias com status 'digitada'
+            const response = await fetch(`/api/v1/guias/?status_guia=digitada`, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (response.ok) {
+                const guias = await response.json();
+                
+                // Filtra no frontend as guias que pertencem ao convénio selecionado
+                const guiasDoConvenio = guias.filter(g => g.convenio_id == convenioId);
+                
+                listaDiv.innerHTML = '';
+                
+                if (guiasDoConvenio.length === 0) {
+                    listaDiv.innerHTML = '<div style="text-align: center; padding: 10px; color: #ef4444;">Nenhuma guia pendente para este convénio.</div>';
+                    btnSalvar.disabled = true;
+                    return;
+                }
+
+                guiasDoConvenio.forEach(g => {
+                    listaDiv.innerHTML += `
+                        <div class="guia-item">
+                            <label>
+                                <input type="checkbox" name="guias_selecionadas" value="${g.id}" onchange="verificarSelecao()"> 
+                                Guia #${g.id} - ${g.tipo_guia}
+                            </label>
+                            <strong>${formatarMoeda(g.valor_total)}</strong>
+                        </div>
+                    `;
+                });
+                verificarSelecao();
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    function verificarSelecao() {
+        const checkboxes = document.querySelectorAll('input[name="guias_selecionadas"]:checked');
+        document.getElementById('btn-salvar-lote').disabled = checkboxes.length === 0;
+    }
+
+    // SALVAR LOTE (POST)
+    document.getElementById('form-lote').addEventListener('submit', async function(e) {
+        e.preventDefault();
+
+        const convenio_id = parseInt(document.getElementById('lote-convenio').value);
+        const checkboxes = document.querySelectorAll('input[name="guias_selecionadas"]:checked');
+        const guias_ids = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+        try {
+            const response = await fetch('/api/v1/lotes/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ convenio_id, guias_ids })
+            });
+
+            if (response.ok) {
+                fecharModal();
+                carregarLotes(); 
+                alert('Lote gerado com sucesso!');
+            } else {
+                const errData = await response.json();
+                alert('Erro: ' + errData.detail);
+            }
+        } catch (error) { console.error(error); }
+    });
+
+    // AÇÕES ESPECIAIS: BAIXAR XML E INFORMAR PROTOCOLO
+    function baixarXML(lote_id) {
+        // Abre o link do ficheiro numa nova aba para forçar o download
+        window.open(`/api/v1/tiss/lotes/${lote_id}/xml`, '_blank');
+    }
+
+    async function informarProtocolo(lote_id) {
+        const protocolo = prompt("Digite o número do protocolo de recebimento da operadora:");
+        if (!protocolo) return;
+
+        try {
+            const response = await fetch(`/api/v1/lotes/${lote_id}/enviar`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ numero_protocolo: protocolo })
+            });
+
+            if (response.ok) {
+                alert('Lote marcado como enviado!');
+                carregarLotes(); // Atualiza a tabela
+            } else {
+                alert('Erro ao registar o envio.');
+            }
+        } catch (error) { console.error(error); }
+    }
+
+    document.addEventListener('DOMContentLoaded', carregarLotes);
+</script>
+{% endblock %}
