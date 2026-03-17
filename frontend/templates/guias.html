@@ -138,8 +138,20 @@
     const formatarMoeda = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
     const formatarData = (d) => new Date(d + 'T00:00:00').toLocaleDateString('pt-BR');
 
+    // Função auxiliar para capturar a clínica ativa
+    function getClinicaId() {
+        const id = localStorage.getItem('clinica_ativa_id');
+        if (!id) {
+            alert('Por favor, selecione uma clínica no topo da página primeiro.');
+        }
+        return id;
+    }
+
     async function carregarDependencias() {
-        // Carrega as listas suspensas (Pacientes, Médicos, Convênios, Planos, Procedimentos)
+        const clinicaId = getClinicaId();
+        if(!clinicaId) return;
+
+        // Carrega as listas suspensas
         const rotas = [
             { id: 'guia-paciente', url: '/api/v1/pacientes/' },
             { id: 'guia-medico', url: '/api/v1/medicos/' },
@@ -150,7 +162,12 @@
 
         for (const rota of rotas) {
             try {
-                const res = await fetch(rota.url, { headers: { 'Authorization': `Bearer ${token}` } });
+                const res = await fetch(rota.url, { 
+                    headers: { 
+                        'Authorization': `Bearer ${token}`,
+                        'X-Clinica-Id': clinicaId // <-- INSERIDO AQUI
+                    } 
+                });
                 if (res.ok) {
                     const dados = await res.json();
                     const select = document.getElementById(rota.id);
@@ -165,6 +182,7 @@
     }
 
     function abrirModal() {
+        if (!getClinicaId()) return; // Previne abrir o modal sem clínica
         document.getElementById('modalGuia').style.display = 'flex';
         // Define a data de hoje como padrão
         document.getElementById('guia-data').value = new Date().toISOString().split('T')[0];
@@ -234,19 +252,31 @@
 
     // LISTAR GUIAS (GET)
     async function carregarGuias() {
+        const clinicaId = getClinicaId();
+        const tbody = document.getElementById('tabela-guias');
+
+        if (!clinicaId) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: red;">Selecione uma clínica primeiro.</td></tr>';
+            return;
+        }
+
         try {
-            const response = await fetch('/api/v1/guias/', { headers: { 'Authorization': `Bearer ${token}` } });
+            const response = await fetch('/api/v1/guias/', { 
+                headers: { 
+                    'Authorization': `Bearer ${token}`,
+                    'X-Clinica-Id': clinicaId // <-- INSERIDO AQUI
+                } 
+            });
+            
             if (response.ok) {
                 const guias = await response.json();
-                const tbody = document.getElementById('tabela-guias');
                 tbody.innerHTML = '';
 
                 if (guias.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Nenhuma guia registada.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center;">Nenhuma guia registada nesta clínica.</td></tr>';
                     return;
                 }
 
-                // Precisamos buscar os pacientes para cruzar o nome, mas para simplificar vamos apenas exibir o ID do paciente e status
                 guias.forEach(g => {
                     let classeBadge = g.status === 'digitada' ? 'badge-digitada' : (g.status === 'em_lote' ? 'badge-em-lote' : '');
                     tbody.innerHTML += `
@@ -267,6 +297,8 @@
     // SALVAR GUIA (POST)
     document.getElementById('form-guia').addEventListener('submit', async function(e) {
         e.preventDefault();
+        const clinicaId = getClinicaId();
+        if(!clinicaId) return;
 
         if (procedimentosDaGuia.length === 0) {
             alert('Adicione pelo menos um procedimento na guia antes de salvar!');
@@ -290,14 +322,18 @@
         try {
             const response = await fetch('/api/v1/guias/', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${token}`,
+                    'X-Clinica-Id': clinicaId // <-- INSERIDO AQUI
+                },
                 body: JSON.stringify(payload)
             });
 
             if (response.ok) {
                 fecharModal();
                 carregarGuias(); 
-                alert('Guia salva com sucesso!');
+                alert('Guia salva com sucesso na clínica ativa!');
             } else {
                 const errData = await response.json();
                 alert('Erro: ' + (errData.detail || 'Não foi possível salvar a guia.'));
