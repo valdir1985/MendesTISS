@@ -15,6 +15,10 @@ class LoteTiss(Base):
     status = Column(String(30), default="aberto") # aberto, enviado, processando, processado, erro
     valor_total = Column(Float, default=0.0)
     
+    # --- NOVOS CAMPOS: CONTROLE DE ENVIO ---
+    numero_protocolo = Column(String(100), nullable=True, index=True)
+    data_envio = Column(DateTime(timezone=True), nullable=True)
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
